@@ -46,6 +46,7 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         xx = torch.unsqueeze(xx, dim=1).requires_grad_()
         yy = torch.unsqueeze(yy, dim=1).requires_grad_()
         xy = torch.cat((xx, yy), dim=1)
+        
         uu = self.single_network(xy)
         uu = uu.requires_grad_()  # Ensure that uu also requires gradients
         return torch.squeeze(uu)
@@ -180,7 +181,7 @@ def _solve_spatial_temporal(
     for metric_name, _ in metrics.items():
         history['train_' + metric_name] = []
         history['valid_' + metric_name] = []
-
+        
     for epoch in range(max_epochs):
         train_epoch_loss, train_epoch_metrics = train_routine(
             train_generator_spatial, train_generator_temporal, approximator, optimizer, metrics, shuffle, batch_size
@@ -198,7 +199,9 @@ def _solve_spatial_temporal(
 
         if monitor and epoch % monitor.check_every == 0:
             monitor.check(approximator, history)
-        if epoch % 1000==0:
-            print("Already calculate for "+ str(epoch) + "/"+str(max_epochs))
+
+        print("\r"+"Already calculate for "+ str(epoch) + "/"+str(max_epochs),end='')
+        # if epoch % 1000==0:
+        #     print("Already calculate for "+ str(epoch) + "/"+str(max_epochs))
 
     return approximator, history
