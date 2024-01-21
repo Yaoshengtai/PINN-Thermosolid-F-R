@@ -57,7 +57,7 @@ class SingleNetworkApproximator2DSpatial(Approximator):
     def calculate_loss(self, xx, yy):
         uu = self.__call__(xx, yy)
 
-        equation_mse = torch.mean(self.pde(uu, xx, yy)**2)
+        equation_mse = torch.mean(abs(self.pde(uu, xx, yy)))
 
         boundary_mse = self.boundary_strictness * sum(self._boundary_mse(bc) for bc in self.boundary_conditions)
         h1=0.02  #高
@@ -68,7 +68,7 @@ class SingleNetworkApproximator2DSpatial(Approximator):
     def _boundary_mse(self, bc):
         xx, yy = next(bc.points_generator)
         uu= self.__call__(xx.requires_grad_(), yy.requires_grad_())
-        return torch.mean(bc.form(uu, xx, yy) ** 2) *bc.weight
+        return torch.mean(abs(bc.form(uu, xx, yy))) *bc.weight
 
     def calculate_metrics(self, xx, yy, metrics):
         uu = self.__call__(xx, yy)
@@ -79,8 +79,10 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         }
 
 def _train_2dspatial(train_generator_spatial, train_generator_temporal,
-                     approximator, optimizer, metrics, shuffle, batch_size):
+                     approximator, optimizer, metrics, shuffle, batch_size,device):
     xx, yy = next(train_generator_spatial)
+    xx,yy=xx.to(device),yy.to(device)
+
     xx.requires_grad = True
     yy.requires_grad = True
     training_set_size = len(xx)
@@ -91,8 +93,8 @@ def _train_2dspatial(train_generator_spatial, train_generator_temporal,
         if batch_end > training_set_size:
             batch_end = training_set_size
         batch_idx = idx[batch_start:batch_end]
-        batch_xx = xx[batch_idx]
-        batch_yy = yy[batch_idx]
+        batch_xx = xx[batch_idx].to(device)
+        batch_yy = yy[batch_idx].to(device)
 
         batch_loss = approximator.calculate_loss(batch_xx, batch_yy)
 
@@ -128,7 +130,7 @@ def _valid_2dspatial(valid_generator_spatial, valid_generator_temporal, approxim
 
 def _solve_2dspatial(
     train_generator_spatial, valid_generator_spatial,
-    approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor
+    approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,
 ):
     r"""Solve a 2D steady-state problem
 
@@ -166,7 +168,7 @@ def _solve_2dspatial(
     """
     return _solve_spatial_temporal(
         train_generator_spatial, None, valid_generator_spatial, None,
-        approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,
+        approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,
         train_routine=_train_2dspatial, valid_routine=_valid_2dspatial
     )
 
@@ -174,7 +176,7 @@ def _solve_2dspatial(
 # _solve_1dspatial_temporal, _solve_2dspatial_temporal, _solve_2dspatial all call this function in the end
 def _solve_spatial_temporal(
     train_generator_spatial, train_generator_temporal, valid_generator_spatial, valid_generator_temporal,
-    approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,
+    approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,
     train_routine, valid_routine
 ):
     history = {'train_loss': [], 'valid_loss': []}
@@ -184,18 +186,18 @@ def _solve_spatial_temporal(
         
     for epoch in range(max_epochs):
         train_epoch_loss, train_epoch_metrics = train_routine(
-            train_generator_spatial, train_generator_temporal, approximator, optimizer, metrics, shuffle, batch_size
+            train_generator_spatial, train_generator_temporal, approximator, optimizer, metrics, shuffle, batch_size,device,
         )
         history['train_loss'].append(train_epoch_loss)
         for metric_name, metric_value in train_epoch_metrics.items():
             history['train_' + metric_name].append(metric_value)
 
-        valid_epoch_loss, valid_epoch_metrics = valid_routine(
-            valid_generator_spatial, valid_generator_temporal, approximator, metrics
-        )
-        history['valid_loss'].append(valid_epoch_loss)
-        for metric_name, metric_value in valid_epoch_metrics.items():
-            history['valid_' + metric_name].append(metric_value)
+        # valid_epoch_loss, valid_epoch_metrics = valid_routine(
+        #     valid_generator_spatial, valid_generator_temporal, approximator, metrics
+        # )
+        # history['valid_loss'].append(valid_epoch_loss)
+        # for metric_name, metric_value in valid_epoch_metrics.items():
+        #     history['valid_' + metric_name].append(metric_value)
 
         if monitor and epoch % monitor.check_every == 0:
             monitor.check(approximator, history)

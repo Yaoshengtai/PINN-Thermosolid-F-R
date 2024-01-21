@@ -7,10 +7,11 @@ from IPython.display import clear_output
 class Monitor2DSpatial:
     r"""A Monitor for 2D steady-state problems
     """
-    def __init__(self, check_on_x, check_on_y, check_every):
+    def __init__(self, check_on_x, check_on_y, check_every,device):
         self.using_non_gui_backend = matplotlib.get_backend() == 'agg'
-
-        xy_tensor = torch.cartesian_prod(check_on_x, check_on_y)
+        self.device=device
+        xy_tensor = torch.cartesian_prod(check_on_x, check_on_y).to(self.device)
+        
         self.xx_tensor = torch.squeeze(xy_tensor[:, 0])
         self.yy_tensor = torch.squeeze(xy_tensor[:, 1])
 

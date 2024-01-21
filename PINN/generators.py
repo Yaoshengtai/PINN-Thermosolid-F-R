@@ -1,6 +1,6 @@
 import torch
 
-def generator_1dspatial(size, x_min, x_max, random=True):
+def generator_1dspatial(size, x_min, x_max, device,random=True):
     r"""Return a generator that generates 1D points range from x_min to x_max
 
     :param size:
@@ -22,17 +22,18 @@ def generator_1dspatial(size, x_min, x_max, random=True):
     seg_len = (x_max-x_min) / size
     linspace_lo = x_min + seg_len*0.5
     linspace_hi = x_max - seg_len*0.5
-    center = torch.linspace(linspace_lo, linspace_hi, size)
+    center = torch.linspace(linspace_lo, linspace_hi, size).to(device)
     noise_lo = -seg_len*0.5
     while True:
         if random:
             noise = seg_len*torch.rand(size) + noise_lo
+            noise=noise.to(device)
             yield center + noise
         else:
             yield center
 
 
-def generator_2dspatial_segment(size, start, end, random=True):
+def generator_2dspatial_segment(size, start, end, device,random=True):
     r"""Return a generator that generates 2D points in a line segment.
 
     :param size:
@@ -61,16 +62,17 @@ def generator_2dspatial_segment(size, start, end, random=True):
     x1, y1 = start
     x2, y2 = end
     step = 1./size
-    center = torch.linspace(0. + 0.5*step, 1. - 0.5*step, size)
+    center = torch.linspace(0. + 0.5*step, 1. - 0.5*step, size).to(device)
     noise_lo = -step*0.5
     while True:
         if random:
             noise = step*torch.rand(size) + noise_lo
-            center = center + noise
+            noise=noise.to(device)
+            center = center.to(device) + noise
         yield x1 + (x2-x1)*center, y1 + (y2-y1)*center
 
 
-def generator_2dspatial_rectangle(size, x_min, x_max, y_min, y_max, random=True):
+def generator_2dspatial_rectangle(size, x_min, x_max, y_min, y_max, device,random=True):
     r"""Return a generator that generates 2D points in a rectangle.
 
     :param size:
@@ -90,11 +92,11 @@ def generator_2dspatial_rectangle(size, x_min, x_max, y_min, y_max, random=True)
     :type random: bool
     """
     x_size, y_size = size
-    x_generator = generator_1dspatial(x_size, x_min, x_max, random)
-    y_generator = generator_1dspatial(y_size, y_min, y_max, random)
+    x_generator = generator_1dspatial(x_size, x_min, x_max, device,random)
+    y_generator = generator_1dspatial(y_size, y_min, y_max, device,random)
     while True:
-        x = next(x_generator)
-        y = next(y_generator)
+        x = next(x_generator).to(device)
+        y = next(y_generator).to(device)
         xy = torch.cartesian_prod(x, y)
         xx = torch.squeeze(xy[:, 0])
         yy = torch.squeeze(xy[:, 1])
