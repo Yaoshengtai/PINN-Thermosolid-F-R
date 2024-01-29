@@ -57,7 +57,7 @@ class SingleNetworkApproximator2DSpatial(Approximator):
     def calculate_loss(self, xx, yy):
         uu = self.__call__(xx, yy)
 
-        equation_mse = torch.mean(abs(self.pde(uu, xx, yy)))
+        equation_mse = torch.mean(abs(self.pde(uu, xx, yy))**2)
 
         boundary_mse = self.boundary_strictness * sum(self._boundary_mse(bc) for bc in self.boundary_conditions)
         h1=0.02  #高
@@ -68,13 +68,16 @@ class SingleNetworkApproximator2DSpatial(Approximator):
     def _boundary_mse(self, bc):
         xx, yy = next(bc.points_generator)
         uu= self.__call__(xx.requires_grad_(), yy.requires_grad_())
-        return torch.mean(abs(bc.form(uu, xx, yy))) *bc.weight
-
+        loss=torch.mean(abs(bc.form(uu, xx, yy))**2)
+        w=bc.weight
+        loss=loss*w
+        return loss
+    
     def calculate_metrics(self, xx, yy, metrics):
         uu = self.__call__(xx, yy)
 
         return {
-            metric_name: metric_func(uu, xx, yy)
+            metric_name: metric_func(uu,xx,yy)
             for metric_name, metric_func in metrics.items()
         }
 
@@ -101,7 +104,6 @@ def _train_2dspatial(train_generator_spatial, train_generator_temporal,
         optimizer.zero_grad()
         batch_loss.backward()
         optimizer.step()
-
         batch_start += batch_size
         batch_end += batch_size
 
@@ -130,7 +132,7 @@ def _valid_2dspatial(valid_generator_spatial, valid_generator_temporal, approxim
 
 def _solve_2dspatial(
     train_generator_spatial, valid_generator_spatial,
-    approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,
+    approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,args,
 ):
     r"""Solve a 2D steady-state problem
 
@@ -168,7 +170,7 @@ def _solve_2dspatial(
     """
     return _solve_spatial_temporal(
         train_generator_spatial, None, valid_generator_spatial, None,
-        approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,
+        approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,args,
         train_routine=_train_2dspatial, valid_routine=_valid_2dspatial
     )
 
@@ -176,13 +178,13 @@ def _solve_2dspatial(
 # _solve_1dspatial_temporal, _solve_2dspatial_temporal, _solve_2dspatial all call this function in the end
 def _solve_spatial_temporal(
     train_generator_spatial, train_generator_temporal, valid_generator_spatial, valid_generator_temporal,
-    approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,
+    approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,args,
     train_routine, valid_routine
 ):
     history = {'train_loss': [], 'valid_loss': []}
     for metric_name, _ in metrics.items():
         history['train_' + metric_name] = []
-        history['valid_' + metric_name] = []
+        #history['valid_' + metric_name] = []
         
     for epoch in range(max_epochs):
         train_epoch_loss, train_epoch_metrics = train_routine(
@@ -192,17 +194,25 @@ def _solve_spatial_temporal(
         for metric_name, metric_value in train_epoch_metrics.items():
             history['train_' + metric_name].append(metric_value)
 
-        # valid_epoch_loss, valid_epoch_metrics = valid_routine(
-        #     valid_generator_spatial, valid_generator_temporal, approximator, metrics
-        # )
-        # history['valid_loss'].append(valid_epoch_loss)
+        valid_epoch_loss, valid_epoch_metrics = valid_routine(
+            valid_generator_spatial, valid_generator_temporal, approximator, metrics
+        )
+        history['valid_loss'].append(valid_epoch_loss)
         # for metric_name, metric_value in valid_epoch_metrics.items():
         #     history['valid_' + metric_name].append(metric_value)
 
         if monitor and epoch % monitor.check_every == 0:
-            monitor.check(approximator, history)
+            monitor.check(approximator, history,epoch)
 
-        print("\r"+"Already calculate for "+ str(epoch) + "/"+str(max_epochs),end='')
+        #print("\r"+"Already calculate for "+ str(epoch) + "/"+str(max_epochs),end='')
+        with open(args.save_dict+'-train_log.txt', 'w') as file:
+            last_items = {key: values[-1] if values else None for key, values in history.items()}
+            for key, value in last_items.items():
+                file.write(f"{key}: {value}\n")
+            file.write("Already calculate for "+ str(epoch) + "/"+str(max_epochs))
+
+
+        #print("Already calculate for "+ str(epoch) + "/"+str(max_epochs))
         # if epoch % 1000==0:
         #     print("Already calculate for "+ str(epoch) + "/"+str(max_epochs))
 

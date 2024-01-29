@@ -1,6 +1,6 @@
 import torch
 
-def generator_1dspatial(size, x_min, x_max, device,random=True):
+def generator_1dspatial(size, x_min, x_max, device,random=False):
     r"""Return a generator that generates 1D points range from x_min to x_max
 
     :param size:
@@ -25,6 +25,7 @@ def generator_1dspatial(size, x_min, x_max, device,random=True):
     center = torch.linspace(linspace_lo, linspace_hi, size).to(device)
     noise_lo = -seg_len*0.5
     while True:
+        center = torch.linspace(linspace_lo, linspace_hi, size).to(device)
         if random:
             noise = seg_len*torch.rand(size) + noise_lo
             noise=noise.to(device)
@@ -33,7 +34,7 @@ def generator_1dspatial(size, x_min, x_max, device,random=True):
             yield center
 
 
-def generator_2dspatial_segment(size, start, end, device,random=True):
+def generator_2dspatial_segment(size, start, end, device,random=False):
     r"""Return a generator that generates 2D points in a line segment.
 
     :param size:
@@ -65,6 +66,7 @@ def generator_2dspatial_segment(size, start, end, device,random=True):
     center = torch.linspace(0. + 0.5*step, 1. - 0.5*step, size).to(device)
     noise_lo = -step*0.5
     while True:
+        center = torch.linspace(0. + 0.5*step, 1. - 0.5*step, size).to(device)
         if random:
             noise = step*torch.rand(size) + noise_lo
             noise=noise.to(device)
@@ -72,7 +74,7 @@ def generator_2dspatial_segment(size, start, end, device,random=True):
         yield x1 + (x2-x1)*center, y1 + (y2-y1)*center
 
 
-def generator_2dspatial_rectangle(size, x_min, x_max, y_min, y_max, device,random=True):
+def generator_2dspatial_rectangle(size, x_min, x_max, y_min, y_max, device,random=False):
     r"""Return a generator that generates 2D points in a rectangle.
 
     :param size:

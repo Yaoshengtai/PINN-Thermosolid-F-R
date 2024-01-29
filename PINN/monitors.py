@@ -2,12 +2,14 @@ import torch
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
+import pandas as pd
 from IPython.display import clear_output
+from PINN.generators import generator_2dspatial_segment
 
 class Monitor2DSpatial:
     r"""A Monitor for 2D steady-state problems
     """
-    def __init__(self, check_on_x, check_on_y, check_every,device):
+    def __init__(self, check_on_x, check_on_y, check_every,device,args):
         self.using_non_gui_backend = matplotlib.get_backend() == 'agg'
         self.device=device
         xy_tensor = torch.cartesian_prod(check_on_x, check_on_y).to(self.device)
@@ -22,10 +24,11 @@ class Monitor2DSpatial:
 
         self.check_on_x=check_on_x
         self.check_on_y=check_on_y
+        self.args=args
 
-    def check(self, approximator, history):
+    def check(self, approximator, history,epoch):
         clear_output(wait=True)
-        fig, axs = plt.subplots(3, 3, figsize=(10, 10))
+        fig, axs = plt.subplots(3, 3, figsize=(13, 10))
         uu_array = approximator(self.xx_tensor, self.yy_tensor).detach().cpu().numpy()
         xx, yy = np.meshgrid(self.check_on_x, self.check_on_y)
         # 创建热力图
@@ -40,11 +43,12 @@ class Monitor2DSpatial:
         # 显示图形
         
         axs[0,1].plot(history['train_loss'], label='training loss')
-        #axs[0,1].plot(history['valid_loss'], label='validation loss')
+        axs[0,1].plot(history['valid_loss'], label='validation loss')
         axs[0,1].set_title('loss during training')
         axs[0,1].set_xlabel('epochs')
         axs[0,1].set_ylabel('loss')
         axs[0,1].set_yscale('log')
+        axs[0,1].legend()
 
         i=0 ; j=1
         for metric_name, metric_values in history.items():
@@ -59,8 +63,35 @@ class Monitor2DSpatial:
             axs[i,j].set_xlabel('epochs')
             axs[i,j].set_ylabel('loss')
             axs[i,j].set_yscale('log')
+        points_generator=generator_2dspatial_segment(size=100, start=(0.0, 1.0), end=(1.0, 1.0),device=self.device,random=True)
+        x,y=next(points_generator)
+        u=approximator.__call__(x.requires_grad_(),y.requires_grad_()).detach().cpu().numpy()
+        x=x.detach().cpu().numpy()
+        axs[2,1].plot(x,u,label='predict')
+        axs[2,1].plot(x,2*x**3-3*x**2+1,label='exact')
+        axs[2,1].set_xlabel('r')
+        axs[2,1].set_ylabel('temprature')
+        axs[2,1].set_title('up_boundary_compare')
+        axs[2,1].legend()
 
-        plt.legend()
+        fem=pd.read_csv('./data/comsol_data_2x3-3x2+1.txt',delimiter=r'\s+')
+        uu_di=abs(uu_array*self.args.maxf+303.15-fem['T'].values)
+        heatmap=axs[2,2].pcolormesh(xx, yy, uu_di.reshape(xx.shape).T, cmap='rainbow')
+        cbar=plt.colorbar(heatmap,ax=axs[2,2],label='Temperature(/K)')
+        # 添加轴标签
+        # 手动设置 colorbar 的刻度标签
+        cbar_ticks = [uu_di.min(), uu_di.max()]  # 设置刻度标签为最小值和最大值
+        cbar.set_ticks(cbar_ticks)
+
+        # 设置刻度标签的文本，可以使用字符串格式化来显示具体值
+        cbar_ticklabels = [f'{tick:.2f}' for tick in cbar_ticks]
+        cbar.set_ticklabels(cbar_ticklabels)
+        axs[2,2].set_xlabel('r')
+        axs[2,2].set_ylabel('z')
+        axs[2,2].set_title('Heatmap_compare')
+
+        #plt.legend()
         plt.tight_layout()
-        
-        plt.show()
+        plt.savefig(self.args.save_dict+"-image/"+str(epoch)+".png" , dpi=400)
+        #print("Save successfully")
+        #plt.show()
