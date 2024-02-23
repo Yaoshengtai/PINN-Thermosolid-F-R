@@ -1,5 +1,6 @@
 import torch
 from abc import ABC, abstractmethod
+from torch.autograd import grad
 
 class Approximator(ABC):
     r"""The base class of approximators. An approximator is an approximation of the differential equation's solution.
@@ -36,20 +37,25 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         A larger regularization parameter enforces the boundary conditions more strictly.
     :type boundary_strictness: float
     """
-    def __init__(self, single_network, pde, boundary_conditions, boundary_strictness=1.):
+    def __init__(self, single_network, pde, boundary_conditions, boundary_strictness,args):
         self.single_network = single_network
         self.pde = pde
         self.boundary_conditions = boundary_conditions
         self.boundary_strictness = boundary_strictness
+        self.args=args
 
     def __call__(self, xx, yy):
-        xx = torch.unsqueeze(xx, dim=1).requires_grad_()
-        yy = torch.unsqueeze(yy, dim=1).requires_grad_()
-        xy = torch.cat((xx, yy), dim=1)
-        
+        x = torch.unsqueeze(xx, dim=1).requires_grad_()
+        y = torch.unsqueeze(yy, dim=1).requires_grad_()
+        xy = torch.cat((x, y), dim=1)
         uu = self.single_network(xy)
-        uu = uu.requires_grad_()  # Ensure that uu also requires gradients
-        return torch.squeeze(uu)
+        uu = torch.squeeze(uu.requires_grad_())  # Ensure that uu also requires gradients
+        ## exact imposition diriclet boundary
+        if self.args.impose==1:
+            u_par=2*xx**3-3*xx**2+1
+            #uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
+            uu=u_par+(1-yy)*uu
+        return uu
     
     def parameters(self):
         return self.single_network.parameters()
@@ -68,21 +74,74 @@ class SingleNetworkApproximator2DSpatial(Approximator):
     def _boundary_mse(self, bc):
         xx, yy = next(bc.points_generator)
         uu= self.__call__(xx.requires_grad_(), yy.requires_grad_())
+
         loss=torch.mean(abs(bc.form(uu, xx, yy))**2)
         w=bc.weight
         loss=loss*w
         return loss
     
-    def calculate_metrics(self, xx, yy, metrics):
+    def update_weight(self,pde_mean_grad,boundary_mean_grad,device):
+        weight=torch.tensor([1 for i in range(4-self.args.impose)]).to(device)
+        alpha=0.1
+        while True:
+            weight_hat=pde_mean_grad/boundary_mean_grad
+            weight=(1-alpha)*weight+alpha*weight_hat
+            yield weight
+
+    def calculate_weight(self,xx,yy,device):
         uu = self.__call__(xx, yy)
 
+        equation_mse = torch.mean(abs(self.pde(uu, xx, yy))**2)
+        pde_grad=grad(equation_mse,self.single_network.parameters(),create_graph=False,allow_unused=True)
+        pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])    
+        pde_mean_grad = torch.mean(abs(pde_grad))
+        #print(pde_mean_grad.item())
+
+        boundary_mean_grad=[]
+        for bc in self.boundary_conditions:
+            if bc.impose==0:
+                xx,yy=next(bc.points_generator)
+                uu= self.__call__(xx.requires_grad_(), yy.requires_grad_())
+                loss=torch.mean(abs(bc.form(uu, xx, yy))**2)
+                bc_grad=grad(loss,self.single_network.parameters(),create_graph=False,allow_unused=True)
+                bc_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in bc_grad if grad_tensor is not None])    
+                bc_mean_grad=torch.mean(abs(bc_grad))
+                
+                boundary_mean_grad.append(bc_mean_grad)
+        #print(boundary_mean_grad)
+        boundary_mean_grad=torch.tensor(boundary_mean_grad).to(device)
+        weight=next(self.update_weight(pde_mean_grad,boundary_mean_grad,device))
+        #print(weight)
+        return weight
+    
+    def calculate_loss_mtl(self,xx,yy,device):
+
+        uu = self.__call__(xx, yy)
+        equation_mse = torch.mean(abs(self.pde(uu, xx, yy))**2)
+        beta=5
+        weight=self.calculate_weight(xx,yy,device)
+
+        Loss=beta*equation_mse
+        for bc in self.boundary_conditions:
+            if bc.impose==0:
+                i=0
+                xx,yy=next(bc.points_generator)
+                uu= self.__call__(xx.requires_grad_(), yy.requires_grad_())
+                loss=torch.mean(abs(bc.form(uu, xx, yy))**2)
+                Loss+=loss*weight[i]
+                i+=1
+        return weight,Loss
+
+
+    def calculate_metrics(self, xx, yy, metrics):
+        uu = self.__call__(xx, yy)
         return {
             metric_name: metric_func(uu,xx,yy)
             for metric_name, metric_func in metrics.items()
         }
 
 def _train_2dspatial(train_generator_spatial, train_generator_temporal,
-                     approximator, optimizer, metrics, shuffle, batch_size,device):
+                     approximator, optimizer, metrics, shuffle, batch_size,device,args):
     xx, yy = next(train_generator_spatial)
     xx,yy=xx.to(device),yy.to(device)
 
@@ -90,7 +149,7 @@ def _train_2dspatial(train_generator_spatial, train_generator_temporal,
     yy.requires_grad = True
     training_set_size = len(xx)
     idx = torch.randperm(training_set_size) if shuffle else torch.arange(training_set_size)
-
+    weight=torch.tensor([]).to(device)
     batch_start, batch_end = 0, batch_size
     while batch_start < training_set_size:
         if batch_end > training_set_size:
@@ -98,8 +157,10 @@ def _train_2dspatial(train_generator_spatial, train_generator_temporal,
         batch_idx = idx[batch_start:batch_end]
         batch_xx = xx[batch_idx].to(device)
         batch_yy = yy[batch_idx].to(device)
-
-        batch_loss = approximator.calculate_loss(batch_xx, batch_yy)
+        if args.mtl==0:
+            batch_loss = approximator.calculate_loss(batch_xx, batch_yy)
+        else:
+            weight,batch_loss=approximator.calculate_loss_mtl(batch_xx, batch_yy,device)
 
         optimizer.zero_grad()
         batch_loss.backward()
@@ -107,13 +168,13 @@ def _train_2dspatial(train_generator_spatial, train_generator_temporal,
         batch_start += batch_size
         batch_end += batch_size
 
-    epoch_loss = approximator.calculate_loss(xx, yy).item()
-
+    weight_tem,epoch_loss = approximator.calculate_loss_mtl(xx, yy,device)
+    #epoch_loss = approximator.calculate_loss(xx,yy)
     epoch_metrics = approximator.calculate_metrics(xx, yy, metrics)
     for k, v in epoch_metrics.items():
         epoch_metrics[k] = v.item()
 
-    return epoch_loss, epoch_metrics
+    return epoch_loss, epoch_metrics,weight
 
 
 # validation phase for 2D steady-state problems
@@ -185,19 +246,21 @@ def _solve_spatial_temporal(
     for metric_name, _ in metrics.items():
         history['train_' + metric_name] = []
         #history['valid_' + metric_name] = []
-        
+    with open(args.save_dict+'-train_log.txt', 'w') as file:
+        file.write("....... begin training ....... \n")
     for epoch in range(max_epochs):
-        train_epoch_loss, train_epoch_metrics = train_routine(
-            train_generator_spatial, train_generator_temporal, approximator, optimizer, metrics, shuffle, batch_size,device,
+        train_epoch_loss, train_epoch_metrics,weight = train_routine(
+            train_generator_spatial, train_generator_temporal, approximator, optimizer, metrics, shuffle, batch_size,device,args,
         )
-        history['train_loss'].append(train_epoch_loss)
+        history['train_loss'].append(train_epoch_loss.detach().cpu())
+        
         for metric_name, metric_value in train_epoch_metrics.items():
             history['train_' + metric_name].append(metric_value)
 
         valid_epoch_loss, valid_epoch_metrics = valid_routine(
             valid_generator_spatial, valid_generator_temporal, approximator, metrics
         )
-        history['valid_loss'].append(valid_epoch_loss)
+        #history['valid_loss'].append(valid_epoch_loss)
         # for metric_name, metric_value in valid_epoch_metrics.items():
         #     history['valid_' + metric_name].append(metric_value)
 
@@ -205,11 +268,15 @@ def _solve_spatial_temporal(
             monitor.check(approximator, history,epoch)
 
         #print("\r"+"Already calculate for "+ str(epoch) + "/"+str(max_epochs),end='')
-        with open(args.save_dict+'-train_log.txt', 'w') as file:
-            last_items = {key: values[-1] if values else None for key, values in history.items()}
-            for key, value in last_items.items():
-                file.write(f"{key}: {value}\n")
-            file.write("Already calculate for "+ str(epoch) + "/"+str(max_epochs))
+        if epoch %10==0:
+            with open(args.save_dict+'-train_log.txt', 'a') as file:
+                last_items = {key: values[-1] if values else None for key, values in history.items()}
+                for key, value in last_items.items():
+                    file.write(f"{key}: {value}\n")
+                file.write("weight: left bottom right \n")
+                for w in weight.detach().cpu().tolist():
+                    file.write(str(w)+'\n')
+                file.write("Already calculate for "+ str(epoch) + "/"+str(max_epochs)+'\n')
 
 
         #print("Already calculate for "+ str(epoch) + "/"+str(max_epochs))

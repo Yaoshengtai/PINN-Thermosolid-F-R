@@ -22,7 +22,8 @@ class BoundaryCondition:
         or a generator written by user.
     :type points_genrator: generator
     """
-    def __init__(self, form, points_generator,weight):
+    def __init__(self, form, points_generator,weight,impose):
         self.form = form
         self.points_generator = points_generator
         self.weight=weight
+        self.impose=impose
