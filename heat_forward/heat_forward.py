@@ -58,7 +58,6 @@ save_folder = args.save_dict + "-image/"
 # 确保文件夹存在，如果不存在则创建
 if not os.path.exists(save_folder):
     os.makedirs(save_folder)
-
 use_gpu = args.gpu
 device = torch.device("cuda" if use_gpu else "cpu")
 if use_gpu:
@@ -118,6 +117,7 @@ def pdemse(uu,xx,yy):
     error=heat_transfer_norm(uu,xx,yy)
     return torch.mean(abs(error)**2)
 metrics['pdemse']=pdemse
+
 #左边界
 def leftbound_mse(uu,xx,yy):
     x,y=next(adiabatic_left.points_generator)
@@ -161,12 +161,16 @@ def comsol_compare(uu,xx,yy):
 
     uu=fcnn_approximator.__call__(xx,yy)
     uu=uu.detach().cpu().numpy()
-    fem=pd.read_csv('./data/h20000.txt',delimiter=r'\s+')
+    #fem=pd.read_csv('./data/h20000.txt',delimiter=r'\s+')
+    fem=pd.read_csv('./data/D_4.txt',delimiter=r'\s+')
     uu_di=abs(uu*args.maxf+303.15-fem['T'].values)
     return np.mean(uu_di **2 )
 
 
 metrics['comsol_compare']=comsol_compare
+
+    
+
 #pureLoss
 # def pureloss(uu,xx,yy):
 #     return pdemse(uu,xx,yy)+rightbound_mse(uu,xx,yy)+bottombound_mse(uu,xx,yy)+leftbound_mse(uu,xx,yy)+upbound_mse(uu,xx,yy)
@@ -211,6 +215,7 @@ fcnn_approximator = SingleNetworkApproximator2DSpatial(
 adam = optim.Adam(fcnn_approximator.parameters(), lr=args.lr)
 train_gen_spatial = generator_2dspatial_rectangle(size=(size_train, size_train), x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0,device=device,random=args.train_gen_random)
 valid_gen_spatial = generator_2dspatial_rectangle(size=(50, 50), x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, random=args.valid_gen_random,device=device)
+
 #%matplotlib inline
 heat_transfer_2d_solution, _ = _solve_2dspatial(
     train_generator_spatial=train_gen_spatial,

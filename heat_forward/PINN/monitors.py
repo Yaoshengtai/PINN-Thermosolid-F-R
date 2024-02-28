@@ -83,7 +83,8 @@ class Monitor2DSpatial:
 
         #fem=pd.read_csv('./data/comsol_data_2x3-3x2+1.txt',delimiter=r'\s+')
         #fem=pd.read_csv('./data/comsol_h_200.txt',delimiter=r'\s+')
-        fem=pd.read_csv('./data/h20000.txt',delimiter=r'\s+')
+        #fem=pd.read_csv('./data/h20000.txt',delimiter=r'\s+')
+        fem=pd.read_csv('./data/D_4.txt',delimiter=r'\s+')
         uu_di=abs(uu_array*self.args.maxf+303.15-fem['T'].values)
         heatmap=axs[2,2].pcolormesh(xx, yy, uu_di.reshape(xx.shape).T, cmap='rainbow')
         cbar=plt.colorbar(heatmap,ax=axs[2,2],label='Temperature(/K)')

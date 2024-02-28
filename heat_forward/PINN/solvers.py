@@ -51,10 +51,10 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         uu = self.single_network(xy)
         uu = torch.squeeze(uu.requires_grad_())  # Ensure that uu also requires gradients
         ## exact imposition diriclet boundary
-        if self.args.impose==1:
+        if self.args.impose!=0:
             u_par=2*xx**3-3*xx**2+1
-            #uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
-            uu=u_par+(1-yy)*uu
+            uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
+            #uu=u_par+(1-yy)*uu
         return uu
     
     def parameters(self):
@@ -65,11 +65,11 @@ class SingleNetworkApproximator2DSpatial(Approximator):
 
         equation_mse = torch.mean(abs(self.pde(uu, xx, yy))**2)
 
-        boundary_mse = self.boundary_strictness * sum(self._boundary_mse(bc) for bc in self.boundary_conditions)
+        #boundary_mse = self.boundary_strictness * sum(self._boundary_mse(bc) for bc in self.boundary_conditions)
         h1=0.02  #高
         #weight_pde=h1 ** 4 /3
         #weight_pde=0.2
-        return equation_mse + boundary_mse
+        return equation_mse #+ boundary_mse
 
     def _boundary_mse(self, bc):
         xx, yy = next(bc.points_generator)
@@ -168,8 +168,8 @@ def _train_2dspatial(train_generator_spatial, train_generator_temporal,
         batch_start += batch_size
         batch_end += batch_size
 
-    weight_tem,epoch_loss = approximator.calculate_loss_mtl(xx, yy,device)
-    #epoch_loss = approximator.calculate_loss(xx,yy)
+    #weight_tem,epoch_loss = approximator.calculate_loss_mtl(xx, yy,device)
+    epoch_loss = approximator.calculate_loss(xx,yy)
     epoch_metrics = approximator.calculate_metrics(xx, yy, metrics)
     for k, v in epoch_metrics.items():
         epoch_metrics[k] = v.item()
@@ -268,15 +268,15 @@ def _solve_spatial_temporal(
             monitor.check(approximator, history,epoch)
 
         #print("\r"+"Already calculate for "+ str(epoch) + "/"+str(max_epochs),end='')
-        if epoch %10==0:
-            with open(args.save_dict+'-train_log.txt', 'a') as file:
-                last_items = {key: values[-1] if values else None for key, values in history.items()}
-                for key, value in last_items.items():
-                    file.write(f"{key}: {value}\n")
-                file.write("weight: left bottom right \n")
-                for w in weight.detach().cpu().tolist():
-                    file.write(str(w)+'\n')
-                file.write("Already calculate for "+ str(epoch) + "/"+str(max_epochs)+'\n')
+        #if epoch %10==0:
+        with open(args.save_dict+'-train_log.txt', 'w') as file:
+            last_items = {key: values[-1] if values else None for key, values in history.items()}
+            for key, value in last_items.items():
+                file.write(f"{key}: {value}\n")
+            file.write("weight: left bottom right \n")
+            for w in weight.detach().cpu().tolist():
+                file.write(str(w)+'\n')
+            file.write("Already calculate for "+ str(epoch) + "/"+str(max_epochs)+'\n')
 
 
         #print("Already calculate for "+ str(epoch) + "/"+str(max_epochs))

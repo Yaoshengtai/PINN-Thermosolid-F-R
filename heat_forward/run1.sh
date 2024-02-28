@@ -8,7 +8,7 @@ source activate ystpinn
  
 #python程序运行，需在.py文件指定调用GPU，并设置合适的线程数，batch_size大小等
 python heat_forward.py \
-    --lr 0.00001 \
+    --lr 0.000003 \
     --batch_size 4096 \
     --epochs 1000000 \
     --gpu True \
@@ -22,11 +22,11 @@ python heat_forward.py \
     --weight_bottom 1 \
     --boundary_strictness 20 \
     --network_MLP "(32,32,32,32,32)" \
-    --check_every 500 \
+    --check_every 250 \
     --save_dict "run1"\
     --maxf 10 \
     --impose 1 \
-    --mtl 1
+    --mtl 0
 
 
 
