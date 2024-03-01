@@ -1,6 +1,10 @@
 import torch
 from abc import ABC, abstractmethod
 from torch.autograd import grad
+from PINN.function import *
+import math
+
+
 
 class Approximator(ABC):
     r"""The base class of approximators. An approximator is an approximation of the differential equation's solution.
@@ -52,10 +56,11 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         uu = self.single_network(xy)
         uu = torch.squeeze(uu.requires_grad_())  # Ensure that uu also requires gradients
         ## exact imposition diriclet boundary
+        
         if self.args.impose==1:
-            u_par=2*xx**3-3*xx**2+1
+            u_par=0
             #uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
-            uu=u_par+(1-yy)*uu
+            uu[:,1]=u_par+yy*uu[:,1].clone()
         return uu
     
     def parameters(self):
@@ -63,8 +68,9 @@ class SingleNetworkApproximator2DSpatial(Approximator):
 
     def calculate_loss(self, xx, yy):
         uu = self.__call__(xx, yy)
-
-        equation_mse = torch.mean(abs(self.pde(uu, xx, yy))**2)
+        # print(uu.shape)
+        # print(uu[:,0].shape)
+        equation_mse = torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)+self.args.weight_equ2*torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)
 
         boundary_mse = self.boundary_strictness * sum(self._boundary_mse(bc) for bc in self.boundary_conditions)
         h1=0.02  #高
@@ -75,7 +81,7 @@ class SingleNetworkApproximator2DSpatial(Approximator):
     def _boundary_mse(self, bc):
         xx, yy = next(bc.points_generator)
         uu= self.__call__(xx.requires_grad_(), yy.requires_grad_())
-
+        #print(uu.shape)
         loss=torch.mean(abs(bc.form(uu, xx, yy))**2)
         w=bc.weight
         loss=loss*w
@@ -168,9 +174,11 @@ def _train_2dspatial(train_generator_spatial, train_generator_temporal,
         optimizer.step()
         batch_start += batch_size
         batch_end += batch_size
-
-    weight_tem,epoch_loss = approximator.calculate_loss_mtl(xx, yy,device)
-    #epoch_loss = approximator.calculate_loss(xx,yy)
+    if args.mtl==0:
+        epoch_loss = approximator.calculate_loss(xx,yy)
+    else:
+        weight_tem,epoch_loss = approximator.calculate_loss_mtl(xx, yy,device)
+    
     epoch_metrics = approximator.calculate_metrics(xx, yy, metrics)
     for k, v in epoch_metrics.items():
         epoch_metrics[k] = v.item()
@@ -269,8 +277,8 @@ def _solve_spatial_temporal(
             monitor.check(approximator, history,epoch)
 
         #print("\r"+"Already calculate for "+ str(epoch) + "/"+str(max_epochs),end='')
-        if epoch %10==0:
-            with open(args.save_dict+'-train_log.txt', 'a') as file:
+        if epoch %1==0:
+            with open(args.save_dict+'-train_log.txt', 'w') as file:
                 last_items = {key: values[-1] if values else None for key, values in history.items()}
                 for key, value in last_items.items():
                     file.write(f"{key}: {value}\n")

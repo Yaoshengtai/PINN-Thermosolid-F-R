@@ -37,25 +37,33 @@ class Monitor2DSpatial:
         uu_array=uu_array.detach().cpu().numpy()
         xx, yy = np.meshgrid(self.check_on_x, self.check_on_y)
         # 创建热力图
-        heatmap=axs[0,0].pcolormesh(xx, yy, uu_array.reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
-        contour_lines = axs[0,0].contour(xx, yy, uu_array.reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
+        heatmap=axs[0,0].pcolormesh(xx, yy, uu_array[:,0].reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
+        contour_lines = axs[0,0].contour(xx, yy, uu_array[:,0].reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
         # 添加颜色条
-        cbar=plt.colorbar(heatmap,ax=axs[0,0],label='Temperature')
+        cbar=plt.colorbar(heatmap,ax=axs[0,0],label='Disp')
         # 添加轴标签
         axs[0,0].set_xlabel('r')
         axs[0,0].set_ylabel('z')
-        axs[0,0].set_title('Heatmap')
-        # 显示图形
-        
-        axs[0,1].plot(history['train_loss'], label='training loss')
-        #axs[0,1].plot(history['valid_loss'], label='validation loss')
-        axs[0,1].set_title('loss during training')
-        axs[0,1].set_xlabel('epochs')
-        axs[0,1].set_ylabel('loss')
-        axs[0,1].set_yscale('log')
-        axs[0,1].legend()
+        axs[0,0].set_title('Disp_u')
 
-        i=0 ; j=1
+        heatmap=axs[0,1].pcolormesh(xx, yy, uu_array[:,1].reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
+        contour_lines = axs[0,1].contour(xx, yy, uu_array[:,1].reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
+        # 添加颜色条
+        cbar=plt.colorbar(heatmap,ax=axs[0,1],label='Disp')
+        # 添加轴标签
+        axs[0,1].set_xlabel('r')
+        axs[0,1].set_ylabel('z')
+        axs[0,1].set_title('Disp_w')
+        
+        axs[0,2].plot(history['train_loss'], label='training loss')
+        #axs[0,1].plot(history['valid_loss'], label='validation loss')
+        axs[0,2].set_title('loss during training')
+        axs[0,2].set_xlabel('epochs')
+        axs[0,2].set_ylabel('loss')
+        axs[0,2].set_yscale('log')
+        axs[0,2].legend()
+
+        i=0 ; j=2
         for metric_name, metric_values in history.items():
             if metric_name[:5]=="valid" or metric_name=="train_loss":
                 continue
@@ -68,36 +76,36 @@ class Monitor2DSpatial:
             axs[i,j].set_xlabel('epochs')
             axs[i,j].set_ylabel('loss')
             axs[i,j].set_yscale('log')
-        points_generator=generator_2dspatial_segment(size=100, start=(0.0, 1.0), end=(1.0, 1.0),device=self.device,random=True)
-        x,y=next(points_generator)
-        u=approximator.__call__(x.requires_grad_(),y.requires_grad_())
+        # points_generator=generator_2dspatial_segment(size=100, start=(0.0, 1.0), end=(1.0, 1.0),device=self.device,random=True)
+        # x,y=next(points_generator)
+        # u=approximator.__call__(x.requires_grad_(),y.requires_grad_())
 
-        u=u.detach().cpu().numpy()
-        x=x.detach().cpu().numpy()
-        axs[2,1].plot(x,u,label='predict')
-        axs[2,1].plot(x,2*x**3-3*x**2+1,label='exact')
-        axs[2,1].set_xlabel('r')
-        axs[2,1].set_ylabel('temprature')
-        axs[2,1].set_title('up_boundary_compare')
-        axs[2,1].legend()
+        # u=u.detach().cpu().numpy()
+        # x=x.detach().cpu().numpy()
+        # axs[2,1].plot(x,u,label='predict')
+        # axs[2,1].plot(x,2*x**3-3*x**2+1,label='exact')
+        # axs[2,1].set_xlabel('r')
+        # axs[2,1].set_ylabel('temprature')
+        # axs[2,1].set_title('up_boundary_compare')
+        # axs[2,1].legend()
 
         #fem=pd.read_csv('./data/comsol_data_2x3-3x2+1.txt',delimiter=r'\s+')
         #fem=pd.read_csv('./data/comsol_h_200.txt',delimiter=r'\s+')
-        fem=pd.read_csv('./data/h20000.txt',delimiter=r'\s+')
-        uu_di=abs(uu_array*self.args.maxf+303.15-fem['T'].values)
-        heatmap=axs[2,2].pcolormesh(xx, yy, uu_di.reshape(xx.shape).T, cmap='rainbow')
-        cbar=plt.colorbar(heatmap,ax=axs[2,2],label='Temperature(/K)')
-        # 添加轴标签
-        # 手动设置 colorbar 的刻度标签
-        cbar_ticks = [uu_di.min(), uu_di.max()]  # 设置刻度标签为最小值和最大值
-        cbar.set_ticks(cbar_ticks)
+        # fem=pd.read_csv('./data/h20000.txt',delimiter=r'\s+')
+        # uu_di=abs(uu_array*self.args.maxf+303.15-fem['T'].values)
+        # heatmap=axs[2,2].pcolormesh(xx, yy, uu_di.reshape(xx.shape).T, cmap='rainbow')
+        # cbar=plt.colorbar(heatmap,ax=axs[2,2],label='Temperature(/K)')
+        # # 添加轴标签
+        # # 手动设置 colorbar 的刻度标签
+        # cbar_ticks = [uu_di.min(), uu_di.max()]  # 设置刻度标签为最小值和最大值
+        # cbar.set_ticks(cbar_ticks)
 
         # 设置刻度标签的文本，可以使用字符串格式化来显示具体值
-        cbar_ticklabels = [f'{tick:.2f}' for tick in cbar_ticks]
-        cbar.set_ticklabels(cbar_ticklabels)
-        axs[2,2].set_xlabel('r')
-        axs[2,2].set_ylabel('z')
-        axs[2,2].set_title('Heatmap_compare')
+        # cbar_ticklabels = [f'{tick:.2f}' for tick in cbar_ticks]
+        # cbar.set_ticklabels(cbar_ticklabels)
+        # axs[2,2].set_xlabel('r')
+        # axs[2,2].set_ylabel('z')
+        # axs[2,2].set_title('Heatmap_compare')
 
         #plt.legend()
         plt.tight_layout()
