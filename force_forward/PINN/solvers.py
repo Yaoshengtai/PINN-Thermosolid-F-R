@@ -37,6 +37,7 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         A larger regularization parameter enforces the boundary conditions more strictly.
     :type boundary_strictness: float
     """
+
     def __init__(self, single_network, pde, boundary_conditions, boundary_strictness,args):
         self.single_network = single_network
         self.pde = pde
