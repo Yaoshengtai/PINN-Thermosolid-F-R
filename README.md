@@ -1,2 +1,2 @@
-# PINN-Thermosolid-F-R
-Using PINN for solving a thermosollid problem, including forward and reverse solution
+# PINN-Thermosolid-F-I
+Using PINN for solving a thermo-elastic problem, including forward and inverse solution
