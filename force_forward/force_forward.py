@@ -42,7 +42,7 @@ parser.add_argument('--weight_left', type=int , default=2 ,help='左边界权重
 parser.add_argument('--weight_right', type=int , default=5 ,help='右边界权重')
 parser.add_argument('--weight_bottom', type=int , default=2 ,help='下边界权重')
 parser.add_argument('--weight_equ2', type=int , default=1 ,help='控制方程2权重')
-parser.add_argument('--boundary_strictness', type=int , default=1 ,help='边界严格参数')
+parser.add_argument('--boundary_strictness', type=float , default=1 ,help='边界严格参数')
 parser.add_argument('--network_MLP', type=str , default="32,32,32,32,32" ,help='全连接网络形状')
 parser.add_argument('--check_every', type=int , default=500 ,help='检测周期')
 parser.add_argument('--save_dict', type=str , default='run1' ,help='训练文件名')
