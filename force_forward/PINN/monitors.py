@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from IPython.display import clear_output
 from PINN.generators import generator_2dspatial_segment
+from PINN.function import calculate_sigma_rr,calculate_tau_zr
 
 class Monitor2DSpatial:
     r"""A Monitor for 2D steady-state problems
@@ -14,8 +15,8 @@ class Monitor2DSpatial:
         self.device=device
         xy_tensor = torch.cartesian_prod(check_on_x, check_on_y).to(self.device)
         
-        self.xx_tensor = torch.squeeze(xy_tensor[:, 0])
-        self.yy_tensor = torch.squeeze(xy_tensor[:, 1])
+        self.xx_tensor = torch.squeeze(xy_tensor[:, 0]).requires_grad_()
+        self.yy_tensor = torch.squeeze(xy_tensor[:, 1]).requires_grad_()
 
         self.xx_array = self.xx_tensor.clone().detach().cpu().numpy()
         self.yy_array = self.yy_tensor.clone().detach().cpu().numpy()
@@ -33,8 +34,11 @@ class Monitor2DSpatial:
         #print(self.yy_tensor)
 
         uu_array = approximator(self.xx_tensor, self.yy_tensor)
+        sigma_zr=calculate_tau_zr(uu_array[:,0],uu_array[:,1],self.xx_tensor,self.yy_tensor)
 
         uu_array=uu_array.detach().cpu().numpy()
+        sigma_zr=sigma_zr.detach().cpu().numpy()
+
         xx, yy = np.meshgrid(self.check_on_x, self.check_on_y)
         # 创建热力图
         heatmap=axs[0,0].pcolormesh(xx, yy, uu_array[:,0].reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
@@ -63,7 +67,17 @@ class Monitor2DSpatial:
         axs[0,2].set_yscale('log')
         axs[0,2].legend()
 
-        i=0 ; j=2
+        
+        heatmap=axs[1,0].pcolormesh(xx, yy, sigma_zr.reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
+        contour_lines = axs[1,0].contour(xx, yy, sigma_zr.reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
+        # 添加颜色条
+        cbar=plt.colorbar(heatmap,ax=axs[1,0],label='sigma_zr')
+        # 添加轴标签
+        axs[1,0].set_xlabel('r')
+        axs[1,0].set_ylabel('z')
+        axs[1,0].set_title('Disp_w')
+
+        i=1 ; j=0
         for metric_name, metric_values in history.items():
             if metric_name[:5]=="valid" or metric_name=="train_loss":
                 continue

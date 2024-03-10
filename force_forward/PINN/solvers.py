@@ -1,7 +1,6 @@
 import torch
 from abc import ABC, abstractmethod
 from torch.autograd import grad
-from PINN.function import *
 import math
 
 
@@ -57,10 +56,12 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         uu = torch.squeeze(uu.requires_grad_())  # Ensure that uu also requires gradients
         ## exact imposition diriclet boundary
         
-        if self.args.impose==1:
-            u_par=0
+        if self.args.impose!=0:
+            u_par_w=0
             #uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
-            uu[:,1]=u_par+yy*uu[:,1].clone()
+            uu[:,1]=u_par_w+yy*uu[:,1].clone()
+            # u_par_up=((-10+1)*(2*((xx-r1)/(r2-r1))**3-3*((xx-r1)/(r2-r1))**2+1)-1)
+            # uu[:,4]=u_par_up+(h1-yy)*uu[:,4].clone()
         return uu
     
     def parameters(self):
@@ -68,10 +69,15 @@ class SingleNetworkApproximator2DSpatial(Approximator):
 
     def calculate_loss(self, xx, yy):
         uu = self.__call__(xx, yy)
-        # print(uu.shape)
+        #print(uu.shape)
         # print(uu[:,0].shape)
-        equation_mse = torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)+self.args.weight_equ2*torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)
-
+        equation_mse = torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)+\
+            torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)
+                # torch.mean(abs(self.pde[2](uu[:,0],uu[:,1], xx, yy)-uu[:,2])**2)+\
+                # torch.mean(abs(self.pde[3](uu[:,0],uu[:,1], xx, yy)-uu[:,3])**2)+\
+                # torch.mean(abs(self.pde[4](uu[:,0],uu[:,1], xx, yy)-uu[:,4])**2)+\
+                # torch.mean(abs(self.pde[5](uu[:,0],uu[:,1], xx, yy)-uu[:,5])**2)
+        
         boundary_mse = self.boundary_strictness * sum(self._boundary_mse(bc) for bc in self.boundary_conditions)
         h1=0.02  #高
         #weight_pde=h1 ** 4 /3
@@ -87,51 +93,60 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         loss=loss*w
         return loss
     
-    def update_weight(self,pde_mean_grad,boundary_mean_grad,device):
-        weight=torch.tensor([1 for i in range(4-self.args.impose)]).to(device)
+    def update_weight(self,pde_mean_grad_equ1,equ_list,device):
+        weight=torch.tensor([1 for i in range(len(equ_list))]).to(device)
         alpha=0.1
         while True:
-            weight_hat=pde_mean_grad/boundary_mean_grad
+            weight_hat=pde_mean_grad_equ1/equ_list
             weight=(1-alpha)*weight+alpha*weight_hat
             yield weight
 
     def calculate_weight(self,xx,yy,device):
         uu = self.__call__(xx, yy)
-
-        equation_mse = torch.mean(abs(self.pde(uu, xx, yy))**2)
-        pde_grad=grad(equation_mse,self.single_network.parameters(),create_graph=False,allow_unused=True)
+        equ_list=[]
+        equ1_mse = torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)
+        pde_grad=grad(equ1_mse,self.single_network.parameters(),create_graph=False,allow_unused=True)
         pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])    
-        pde_mean_grad = torch.mean(abs(pde_grad))
+        pde_mean_grad_equ1=(torch.mean(abs(pde_grad)))
+
+        for i in range(1,len(self.pde)):
+            equation_mse = torch.mean(abs(self.pde[i](uu[:,0],uu[:,1], xx, yy))**2)
+            pde_grad=grad(equation_mse,self.single_network.parameters(),create_graph=False,allow_unused=True)
+            pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])    
+            equ_list.append(torch.mean(abs(pde_grad)))
         #print(pde_mean_grad.item())
 
-        boundary_mean_grad=[]
         for bc in self.boundary_conditions:
             if bc.impose==0:
                 xx,yy=next(bc.points_generator)
                 uu= self.__call__(xx.requires_grad_(), yy.requires_grad_())
-                loss=torch.mean(abs(bc.form(uu, xx, yy))**2)
+                loss=torch.mean(abs(bc.form(uu, xx, yy)))**2
                 bc_grad=grad(loss,self.single_network.parameters(),create_graph=False,allow_unused=True)
                 bc_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in bc_grad if grad_tensor is not None])    
                 bc_mean_grad=torch.mean(abs(bc_grad))
                 
-                boundary_mean_grad.append(bc_mean_grad)
+                equ_list.append(torch.tensor(bc_mean_grad).to(device))
         #print(boundary_mean_grad)
-        boundary_mean_grad=torch.tensor(boundary_mean_grad).to(device)
-        weight=next(self.update_weight(pde_mean_grad,boundary_mean_grad,device))
+
+        weight=next(self.update_weight(pde_mean_grad_equ1,equ_list,device))
         #print(weight)
         return weight
     
     def calculate_loss_mtl(self,xx,yy,device):
 
         uu = self.__call__(xx, yy)
-        equation_mse = torch.mean(abs(self.pde(uu, xx, yy))**2)
+        equ1_mse = torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)
         beta=5
-        weight=self.calculate_weight(xx,yy,device)
+        Loss=equ1_mse
 
-        Loss=beta*equation_mse
+        weight=self.calculate_weight(xx,yy,device)
+        for i in range(1,len(self.pde)):
+            loss=torch.mean(abs(self.pde[i](uu[:,0],uu[:,1], xx, yy))**2)
+            Loss+=loss*weight[i-1]
+        
         for bc in self.boundary_conditions:
             if bc.impose==0:
-                i=0
+                i=len(self.pde)-1
                 xx,yy=next(bc.points_generator)
                 uu= self.__call__(xx.requires_grad_(), yy.requires_grad_())
                 loss=torch.mean(abs(bc.form(uu, xx, yy))**2)
@@ -266,9 +281,9 @@ def _solve_spatial_temporal(
         for metric_name, metric_value in train_epoch_metrics.items():
             history['train_' + metric_name].append(metric_value)
 
-        valid_epoch_loss, valid_epoch_metrics = valid_routine(
-            valid_generator_spatial, valid_generator_temporal, approximator, metrics
-        )
+        # valid_epoch_loss, valid_epoch_metrics = valid_routine(
+        #     valid_generator_spatial, valid_generator_temporal, approximator, metrics
+        # )
         #history['valid_loss'].append(valid_epoch_loss)
         # for metric_name, metric_value in valid_epoch_metrics.items():
         #     history['valid_' + metric_name].append(metric_value)
