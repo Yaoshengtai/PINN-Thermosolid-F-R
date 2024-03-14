@@ -41,6 +41,7 @@ parser.add_argument('--weight_up', type=int , default=20 ,help='上边界权重'
 parser.add_argument('--weight_left', type=int , default=10 ,help='左边界权重')
 parser.add_argument('--weight_right', type=int , default=5 ,help='右边界权重')
 parser.add_argument('--weight_bottom', type=int , default=2 ,help='下边界权重')
+parser.add_argument('--weight_equ1', type=int , default=5 ,help='控制方程1权重')
 parser.add_argument('--weight_equ2', type=int , default=1 ,help='控制方程2权重')
 parser.add_argument('--weight_equ3', type=int , default=1 ,help='控制方程3权重')
 parser.add_argument('--boundary_strictness', type=float , default=0.5 ,help='边界严格参数')
@@ -100,11 +101,11 @@ p_right=-1 #MPa
 
 #left
 boundary_left=BoundaryCondition(
-    form=lambda u,x,y: abs(calculate_sigma_rr(u[:,0],u[:,1],x,y)-p_left)+100*abs(calculate_tau_zr(u[:,0],u[:,1],x,y)), #- (y-h1)*1000,  #-p_left,
+    form=lambda u,x,y: abs(calculate_sigma_rr(u[:,0],u[:,1],x,y))+10*abs(calculate_tau_zr(u[:,0],u[:,1],x,y)), #- (y-h1)*1000,  #-p_left,
     #points_generator=generator_2dspatial_segment(size=args.train_bound_size, start=(0.0, 0.0), end=(0.0, 1.0),device=device),
     points_generator=generator_2dspatial_segment(size=args.train_bound_size, start=(r1, 0.0), end=(r1, h1),device=device),
     weight=args.weight_left,
-    impose=0,
+    impose=1,
 )
 
 #bottom
@@ -119,23 +120,23 @@ boundary_bottom=BoundaryCondition(
 #right
 boundary_right=BoundaryCondition(
     #form=lambda u,x,y: calculate_sigma_rr(u[:,0],u[:,1],x,y)-p_right,
-    form=lambda u,x,y: abs(calculate_sigma_rr(u[:,0],u[:,1],x,y)-p_right)+100*abs(calculate_tau_zr(u[:,0],u[:,1],x,y)),
+    form=lambda u,x,y: abs(calculate_sigma_rr(u[:,0],u[:,1],x,y))+10*abs(calculate_tau_zr(u[:,0],u[:,1],x,y)),
     points_generator=generator_2dspatial_segment(size=args.train_bound_size, start=(r2, 0.0), end=(r2, h1),device=device),
     #points_generator=generator_2dspatial_segment(size=args.train_bound_size, start=(1.0, 0.0), end=(1.0, 1.0),device=device),
     weight=args.weight_right,
-    impose=0,
+    impose=1,
 )
 
 #up
 boundary_up=BoundaryCondition(
     form=lambda u,x,y: abs(calculate_sigma_zz(u[:,0],u[:,1],x,y)-((p_left-p_right)*(2*((x-r1)/(r2-r1))**3-3*((x-r1)/(r2-r1))**2+1)+p_right))\
-                        +100*abs(calculate_tau_zr(u[:,0],u[:,1],x,y)),
+                        +10*abs(calculate_tau_zr(u[:,0],u[:,1],x,y)),
     #form=lambda u,x,y: calculate_sigma_zz(u[:,0],u[:,1],x,y)-10,
     #form=lambda u,x,y: calculate_tau_zr(u[:,0],u[:,1],x,y)-10,
     points_generator=generator_2dspatial_segment(size=args.train_bound_size, start=(r1, h1), end=(r2, h1),device=device),
     #points_generator=generator_2dspatial_segment(size=args.train_bound_size, start=(0.0, 1.0), end=(1.0, 1.0),device=device),
     weight=args.weight_up,
-    impose=0,
+    impose=1,
 )
 
 
@@ -152,18 +153,38 @@ def equ2(uu,xx,yy):
     return torch.mean(abs(error)**2)
 metrics['equ2']=equ2
 
+def equ3(uu,xx,yy):
+    error=calculate_sigma_rr(uu[:,0],uu[:,1],xx,yy)-uu[:,2]
+    return torch.mean(abs(error)**2)
+metrics['equ3']=equ3
+
+def equ4(uu,xx,yy):
+    error=calculate_sigma_theta(uu[:,0],uu[:,1],xx,yy)-uu[:,3]
+    return torch.mean(abs(error)**2)
+metrics['equ4']=equ4
+
+def equ5(uu,xx,yy):
+    error=calculate_sigma_zz(uu[:,0],uu[:,1],xx,yy)-uu[:,4]
+    return torch.mean(abs(error)**2)
+metrics['equ5']=equ5
+
+def equ6(uu,xx,yy):
+    error=calculate_tau_zr(uu[:,0],uu[:,1],xx,yy)-uu[:,5]
+    return torch.mean(abs(error)**2)
+metrics['equ6']=equ6
+
 # def equ3(uu,xx,yy):
 #     error=u_accumulate(uu[:,0],uu[:,1],xx,yy)
 #     return torch.mean(abs(error)**2)
 # metrics['equ3']=equ3
 
 #左边界
-def leftbound_mse(uu,xx,yy):
-    x,y=next(boundary_left.points_generator)
-    u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
-    error=boundary_left.form(u,x,y)
-    return torch.mean(abs(error)**2)
-metrics['leftbound_mse']=leftbound_mse
+# def leftbound_mse(uu,xx,yy):
+#     x,y=next(boundary_left.points_generator)
+#     u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
+#     error=boundary_left.form(u,x,y)
+#     return torch.mean(abs(error)**2)
+# metrics['leftbound_mse']=leftbound_mse
 
 # #下边界
 # def bottombound_mse(uu,xx,yy):
@@ -174,24 +195,24 @@ metrics['leftbound_mse']=leftbound_mse
 # metrics['bottombound_mse']=bottombound_mse
 
 #右边界
-def rightbound_mse(uu,xx,yy):
-    x,y=next(boundary_right.points_generator)
-    u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
-    error=boundary_right.form(u,x,y)
-    return torch.mean(abs(error)**2)
-metrics['rightbound_mse']=rightbound_mse
+# def rightbound_mse(uu,xx,yy):
+#     x,y=next(boundary_right.points_generator)
+#     u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
+#     error=boundary_right.form(u,x,y)
+#     return torch.mean(abs(error)**2)
+# metrics['rightbound_mse']=rightbound_mse
 
 #上边界
-def upbound_mse(uu,xx,yy):
-    x,y=next(boundary_up.points_generator)
-    u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
-    error=boundary_up.form(u,x,y)
-    return torch.mean(abs(error)**2)
-metrics['upbound_mse']=upbound_mse
+# def upbound_mse(uu,xx,yy):
+#     x,y=next(boundary_up.points_generator)
+#     u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
+#     error=boundary_up.form(u,x,y)
+#     return torch.mean(abs(error)**2)
+# metrics['upbound_mse']=upbound_mse
 
 fcnn = FCNN(
     n_input_units=2,
-    n_output_units=2,
+    n_output_units=6,
     hidden_units=ast.literal_eval(args.network_MLP),
     actv=nn.Tanh
 )
@@ -201,7 +222,7 @@ fcnn=fcnn.to(device)
 fcnn_approximator = SingleNetworkApproximator2DSpatial(
     single_network=fcnn,
     #single_network=renn,
-    pde=(force_balance_r,force_balance_z),#,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr
+    pde=(force_balance_r,force_balance_z,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr),#,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr
     boundary_conditions=[
         boundary_left,
         boundary_bottom,
@@ -215,8 +236,7 @@ size_train=args.train_rec_size
 adam=optim.Adam(fcnn_approximator.parameters(),lr=args.lr)
 #train_gen_spatial = generator_2dspatial_rectangle(size=(size_train, size_train), x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0,device=device,random=args.train_gen_random)
 train_gen_spatial = generator_2dspatial_rectangle(size=(size_train, size_train), x_min=r1, x_max=r2, y_min=0.0, y_max=h1,device=device,random=args.train_gen_random)
-valid_gen_spatial = generator_2dspatial_rectangle(size=(50, 50), x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, random=args.valid_gen_random,device=device)
-#%matplotlib inline
+valid_gen_spatial = generator_2dspatial_rectangle(size=(50, 50), x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, random=args.valid_gen_random,device=device)#%matplotlib inline
 heat_transfer_2d_solution, _ = _solve_2dspatial(
     train_generator_spatial=train_gen_spatial,
     valid_generator_spatial=valid_gen_spatial,

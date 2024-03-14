@@ -8,7 +8,7 @@ source activate ystpinn
  
 #python程序运行，需在.py文件指定调用GPU，并设置合适的线程数，batch_size大小等
 python force_forward.py \
-    --lr 0.0001 \
+    --lr 0.0003 \
     --batch_size 1024 \
     --epochs 1000000 \
     --gpu True \
@@ -25,7 +25,7 @@ python force_forward.py \
     --boundary_strictness 0.5 \
     --network_MLP "(128,128,128,128,128)" \
     --check_every 1000 \
-    --save_dict "run1"\
+    --save_dict "run3"\
     --maxf 10 \
     --impose 1 \
     --mtl 1

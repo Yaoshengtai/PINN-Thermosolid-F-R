@@ -37,6 +37,9 @@ class Monitor2DSpatial:
         sigma_zr=calculate_tau_zr(uu_array[:,0],uu_array[:,1],self.xx_tensor,self.yy_tensor)
 
         uu_array=uu_array.detach().cpu().numpy()
+
+        np.savetxt(self.args.save_dict + '-uu_array.txt', uu_array)
+
         sigma_zr=sigma_zr.detach().cpu().numpy()
 
         xx, yy = np.meshgrid(self.check_on_x, self.check_on_y)
@@ -68,16 +71,16 @@ class Monitor2DSpatial:
         axs[0,2].legend()
 
         
-        heatmap=axs[1,0].pcolormesh(xx, yy, sigma_zr.reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
-        contour_lines = axs[1,0].contour(xx, yy, sigma_zr.reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
-        # 添加颜色条
-        cbar=plt.colorbar(heatmap,ax=axs[1,0],label='sigma_zr')
-        # 添加轴标签
-        axs[1,0].set_xlabel('r')
-        axs[1,0].set_ylabel('z')
-        axs[1,0].set_title('Disp_w')
+        # heatmap=axs[1,0].pcolormesh(xx, yy, sigma_zr.reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
+        # contour_lines = axs[1,0].contour(xx, yy, sigma_zr.reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
+        # # 添加颜色条
+        # cbar=plt.colorbar(heatmap,ax=axs[1,0],label='sigma_zr')
+        # # 添加轴标签
+        # axs[1,0].set_xlabel('r')
+        # axs[1,0].set_ylabel('z')
+        # axs[1,0].set_title('Disp_w')
 
-        i=1 ; j=0
+        i=0 ; j=2
         for metric_name, metric_values in history.items():
             if metric_name[:5]=="valid" or metric_name=="train_loss":
                 continue
