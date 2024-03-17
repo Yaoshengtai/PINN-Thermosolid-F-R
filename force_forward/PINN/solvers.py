@@ -64,7 +64,7 @@ class SingleNetworkApproximator2DSpatial(Approximator):
             u_par_0=0
             #uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
             uu[:,1]=u_par_0+yy*uu[:,1].clone()
-            uu[:,5]=u_par_0+(h1-yy)*(xx-r1)*(r2-xx)*uu[:,5].clone()
+            uu[:,5]=u_par_0+(h1-yy)*(xx-r1)*(r2-xx)*yy*uu[:,5].clone()
 
             u_par_up=((-10+1)*(2*((xx-r1)/(r2-r1))**3-3*((xx-r1)/(r2-r1))**2+1)-1)
             uu[:,4]=u_par_up+(h1-yy)*uu[:,4].clone()
@@ -79,13 +79,14 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         uu = self.__call__(xx, yy)
         #print(uu.shape)
         # print(uu[:,0].shape)
-        equation_mse = torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)+\
-            torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)+\
-                torch.mean(abs(self.pde[2](uu[:,0],uu[:,1], xx, yy)-uu[:,2])**2)+\
-                torch.mean(abs(self.pde[3](uu[:,0],uu[:,1], xx, yy)-uu[:,3])**2)+\
-                torch.mean(abs(self.pde[4](uu[:,0],uu[:,1], xx, yy)-uu[:,4])**2)+\
-                torch.mean(abs(self.pde[5](uu[:,0],uu[:,1], xx, yy)-uu[:,5])**2)   #rr,theta,zz,zr
-        
+        equation_mse = self.args.weight_equ1*torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)+\
+                       self.args.weight_equ2*torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)+\
+                       self.args.weight_equ3*torch.mean(abs(self.pde[2](uu[:,0],uu[:,1], xx, yy)-uu[:,2])**2)+\
+                       self.args.weight_equ4*torch.mean(abs(self.pde[3](uu[:,0],uu[:,1], xx, yy)-uu[:,3])**2)+\
+                       self.args.weight_equ5*torch.mean(abs(self.pde[4](uu[:,0],uu[:,1], xx, yy)-uu[:,4])**2)+\
+                       self.args.weight_equ6*torch.mean(abs(self.pde[5](uu[:,0],uu[:,1], xx, yy)-uu[:,5])**2)#+\
+                       #self.args.weight_equ7*torch.mean(abs(self.pde[6](uu, xx, yy)))   #rr,theta,zz,zr
+                
         #boundary_mse = self.boundary_strictness * sum(self._boundary_mse(bc) for bc in self.boundary_conditions)
         #h1=0.02  #高
         #weight_pde=h1 ** 4 /3
@@ -112,13 +113,13 @@ class SingleNetworkApproximator2DSpatial(Approximator):
     def calculate_weight(self,xx,yy,weight,device):
         uu = self.__call__(xx, yy)
         equ_list=[]
-        equ1_mse = torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)
+        equ1_mse = torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)
         pde_grad=grad(equ1_mse,self.single_network.parameters(),create_graph=False,allow_unused=True,retain_graph=True)
         pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])    
         pde_mean_grad_equ1=(torch.mean(abs(pde_grad)))
 
     
-        equ2_mse = torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)
+        equ2_mse = torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)
         pde_grad=grad(equ2_mse,self.single_network.parameters(),create_graph=False,allow_unused=True,retain_graph=True)
         pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])    
         equ_list.append(torch.mean(abs(pde_grad)))
@@ -153,13 +154,13 @@ class SingleNetworkApproximator2DSpatial(Approximator):
 
         uu = self.__call__(xx, yy)
         
-        equ1_mse = torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)
+        equ1_mse = torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)
         beta=self.args.weight_equ1
-        Loss=equ1_mse
+        Loss=equ1_mse*beta
 
         weight=self.calculate_weight(xx,yy,weight,device)
 
-        loss=torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)*beta
+        loss=torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)  #*beta
         Loss+=loss*weight[0]
 
         for i in range(2,len(self.pde)):
@@ -211,10 +212,11 @@ def _train_2dspatial(train_generator_spatial, train_generator_temporal,
         optimizer.step()
         batch_start += batch_size
         batch_end += batch_size
-    if args.mtl==0:
-        epoch_loss = approximator.calculate_loss(xx,yy)
-    else:
-        weight,epoch_loss = approximator.calculate_loss_mtl(xx, yy,weight,device)
+    # if args.mtl==0:
+    #     epoch_loss = approximator.calculate_loss(xx,yy)
+    # else:
+    #     weight,epoch_loss = approximator.calculate_loss_mtl(xx, yy,weight,device)
+    epoch_loss=batch_loss
     
     epoch_metrics = approximator.calculate_metrics(xx, yy, metrics)
     for k, v in epoch_metrics.items():

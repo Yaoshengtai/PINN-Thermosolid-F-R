@@ -29,7 +29,7 @@ class Monitor2DSpatial:
 
     def check(self, approximator, history,epoch):
         clear_output(wait=True)
-        fig, axs = plt.subplots(3, 3, figsize=(13, 10))
+        fig, axs = plt.subplots(4, 3, figsize=(13, 14))
 
         #print(self.yy_tensor)
 

@@ -1,5 +1,4 @@
-#!/bin/bash
-#SBATCH --gpus=1    
+#!/bin/bash   
 #参数在脚本中可以加上前缀“#SBATCH”指定，和在命令参数中指定功能一致，如果脚本中的参数和命令指定的参数冲突，则命令中指定的参数优先级更高。在此处指定后可以直接sbatch ./run.sh 提交。
 #加载环境，此处加载anaconda环境以及通过anaconda创建的名为pytorch的环境
 module load anaconda/2022.10
@@ -20,11 +19,11 @@ python force_forward.py \
     --weight_left 10 \
     --weight_right 5 \
     --weight_bottom 2 \
-    --weight_equ1 1 \
+    --weight_equ1 5 \
     --weight_equ2 1 \
     --boundary_strictness 0.5 \
     --network_MLP "(128,128,128,128,128)" \
-    --check_every 1000 \
+    --check_every 2000 \
     --save_dict "run2"\
     --maxf 10 \
     --impose 1 \

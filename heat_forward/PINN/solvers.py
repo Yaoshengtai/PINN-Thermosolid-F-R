@@ -53,8 +53,8 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         ## exact imposition diriclet boundary
         if self.args.impose!=0:
             u_par=2*xx**3-3*xx**2+1
-            uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
-            #uu=u_par+(1-yy)*uu
+            #uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
+            uu=u_par+(1-yy)*uu
         return uu
     
     def parameters(self):

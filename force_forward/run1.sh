@@ -21,17 +21,15 @@ python force_forward.py \
     --weight_right 5 \
     --weight_bottom 2 \
     --weight_equ1 5 \
-    --weight_equ2 1 \
+    --weight_equ2 5 \
+    --weight_equ3 10 \
+    --weight_equ4 5 \
+    --weight_equ5 10 \
+    --weight_equ6 20 \
     --boundary_strictness 0.5 \
     --network_MLP "(128,128,128,128,128)" \
-    --check_every 1000 \
+    --check_every 2000 \
     --save_dict "run1"\
     --maxf 10 \
     --impose 1 \
-    --mtl 1
-
-
-
-
-
-                    
+    --mtl 0

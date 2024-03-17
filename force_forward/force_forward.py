@@ -41,9 +41,13 @@ parser.add_argument('--weight_up', type=int , default=20 ,help='上边界权重'
 parser.add_argument('--weight_left', type=int , default=10 ,help='左边界权重')
 parser.add_argument('--weight_right', type=int , default=5 ,help='右边界权重')
 parser.add_argument('--weight_bottom', type=int , default=2 ,help='下边界权重')
-parser.add_argument('--weight_equ1', type=int , default=5 ,help='控制方程1权重')
-parser.add_argument('--weight_equ2', type=int , default=1 ,help='控制方程2权重')
-parser.add_argument('--weight_equ3', type=int , default=1 ,help='控制方程3权重')
+parser.add_argument('--weight_equ1', type=int , default=3 ,help='控制方程1权重')
+parser.add_argument('--weight_equ2', type=int , default=2 ,help='控制方程2权重')
+parser.add_argument('--weight_equ3', type=int , default=10 ,help='控制方程3权重')
+parser.add_argument('--weight_equ4', type=int , default=5 ,help='控制方程4权重')
+parser.add_argument('--weight_equ5', type=int , default=10 ,help='控制方程5权重')
+parser.add_argument('--weight_equ6', type=int , default=3,help='控制方程6权重')
+parser.add_argument('--weight_equ7', type=int , default=3,help='控制方程7权重')
 parser.add_argument('--boundary_strictness', type=float , default=0.5 ,help='边界严格参数')
 parser.add_argument('--network_MLP', type=str , default="32,32,32,32,32" ,help='全连接网络形状')
 #parser.add_argument('--network_MLP', type=str , default="64,64,64,64,64,64,64,64" ,help='全连接网络形状')
@@ -72,7 +76,8 @@ if use_gpu:
                        'shuffle': True}
         
 def calculate_sigma_rr(u,w,r,z):
-    return 2*G * ((1-mu)/(1-2*mu)*diff(u,r) + mu/(1-2*mu)*(u/r+diff(w,z))) 
+    #return 2*G * ((1-mu)/(1-2*mu)*diff(u,r) + mu/(1-2*mu)*(u/r+diff(w,z)))
+    return 2*G * ((1-mu)/(1-2*mu)*diff(u,r) + mu/(1-2*mu)*(u/r+diff(w,z)))
 
 def calculate_sigma_theta(u,w,r,z):
     return 2*G * ((1-mu)/(1-2*mu)*u/r + mu/(1-2*mu)*(diff(w,z)+diff(u,r)))
@@ -90,11 +95,40 @@ def force_balance_r(u,w,r,z):
 
     return diff(sigma_rr,r)+diff(tau_zr,z)+(sigma_rr-sigma_theta)/r
 
+# def force_balance_r(uu,r,z):
+#     sigma_rr=uu[:,2]
+#     sigma_theta=uu[:,3]
+#     tau_zr=uu[:,5]
+
+#     return diff(sigma_rr,r)+diff(tau_zr,z)+(sigma_rr-sigma_theta)/r
+
 def force_balance_z(u,w,r,z):
     sigma_zz=calculate_sigma_zz(u,w,r,z)
     tau_zr=calculate_tau_zr(u,w,r,z)
 
     return diff(sigma_zz,z)+diff(tau_zr,r)+tau_zr/r
+
+def energy(uu,r,z):
+    sigma_rr=calculate_sigma_rr(uu[:,0],uu[:,1],r,z)
+    sigma_theta=calculate_sigma_theta(uu[:,0],uu[:,1],r,z)
+    tau_zr=calculate_tau_zr(uu[:,0],uu[:,1],r,z)
+    sigma_zz=calculate_sigma_zz(uu[:,0],uu[:,1],r,z)
+
+    er=(sigma_rr-mu*(sigma_theta+sigma_zz))/E
+    et=(sigma_theta-mu*(sigma_rr+sigma_zz))/E
+    ez=(sigma_zz-mu*(sigma_theta+sigma_rr))/E
+    ezr=tau_zr/G
+
+    num=int(np.sqrt(len(r)))
+    dr=(r2-r1)/num
+    dz=h1/num
+
+    U=sum((sigma_rr*er+sigma_zz*ez+sigma_theta*et+tau_zr*ezr)*r*dr*dz)
+    W=sum(-1*r1*(-10)*uu[:,0].reshape(num,num)[0]*dz)+\
+        sum(r2*(-1)*uu[:,0].reshape(num,num)[-1]*dz)+\
+        sum(sigma_zz.reshape(num,num)[:,-1]*uu[:,1].reshape(num,num)[:,-1]*r.reshape(num,num)[:,-1]*dr)
+    
+    return U-W
 
 p_left=-10 #MPa
 p_right=-1 #MPa
@@ -173,6 +207,11 @@ def equ6(uu,xx,yy):
     return torch.mean(abs(error)**2)
 metrics['equ6']=equ6
 
+def equ7(uu,xx,yy):
+    error=energy(uu,xx,yy)
+    return torch.mean(abs(error))
+metrics['equ7']=equ7
+
 # def equ3(uu,xx,yy):
 #     error=u_accumulate(uu[:,0],uu[:,1],xx,yy)
 #     return torch.mean(abs(error)**2)
@@ -222,7 +261,7 @@ fcnn=fcnn.to(device)
 fcnn_approximator = SingleNetworkApproximator2DSpatial(
     single_network=fcnn,
     #single_network=renn,
-    pde=(force_balance_r,force_balance_z,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr),#,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr
+    pde=(force_balance_r,force_balance_z,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr,energy),#,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr
     boundary_conditions=[
         boundary_left,
         boundary_bottom,
