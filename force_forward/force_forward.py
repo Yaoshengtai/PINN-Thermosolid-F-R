@@ -207,10 +207,10 @@ def equ6(uu,xx,yy):
     return torch.mean(abs(error)**2)
 metrics['equ6']=equ6
 
-def equ7(uu,xx,yy):
-    error=energy(uu,xx,yy)
-    return torch.mean(abs(error))
-metrics['equ7']=equ7
+# def equ7(uu,xx,yy):
+#     error=energy(uu,xx,yy)
+#     return torch.mean(abs(error))
+# metrics['equ7']=equ7
 
 # def equ3(uu,xx,yy):
 #     error=u_accumulate(uu[:,0],uu[:,1],xx,yy)
@@ -261,7 +261,7 @@ fcnn=fcnn.to(device)
 fcnn_approximator = SingleNetworkApproximator2DSpatial(
     single_network=fcnn,
     #single_network=renn,
-    pde=(force_balance_r,force_balance_z,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr,energy),#,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr
+    pde=(force_balance_r,force_balance_z,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr),#,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr
     boundary_conditions=[
         boundary_left,
         boundary_bottom,
