@@ -64,11 +64,12 @@ class SingleNetworkApproximator2DSpatial(Approximator):
             u_par_0=0
             #uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
             uu[:,1]=u_par_0+yy*uu[:,1].clone()
-            uu[:,5]=u_par_0+(h1-yy)*(xx-r1)*(r2-xx)*yy*uu[:,5].clone()
+            uu[:,5]=u_par_0+(h1-yy)*(xx-r1)*(r2-xx)*yy*uu[:,5].clone()\
+            /((h1-yy)*(xx-r1)*(r2-xx)+(h1-yy)*(xx-r1)*yy+(h1-yy)*(r2-xx)*yy+(xx-r1)*(r2-xx)*yy)
 
             u_par_up=((-10+1)*(2*((xx-r1)/(r2-r1))**3-3*((xx-r1)/(r2-r1))**2+1)-1)
             uu[:,4]=u_par_up+(h1-yy)*uu[:,4].clone()
-            uu[:,2]=u_par_up+(xx-r1)*(r2-xx)*uu[:,2].clone()
+            uu[:,2]=u_par_up+(xx-r1)*(r2-xx)*uu[:,2].clone()/(r2-r1)
 
         return uu
     
@@ -106,7 +107,8 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         #weight=torch.tensor([1 for i in range(len(equ_list))]).to(device)
         while True:
             alpha=0.1
-            weight_hat=abs(torch.log2(pde_mean_grad_equ1/equ_list))
+            #weight_hat=abs(torch.log2(pde_mean_grad_equ1/equ_list))
+            weight_hat=abs((pde_mean_grad_equ1/equ_list))
             weight=(1-alpha)*weight+alpha*weight_hat
             yield weight
 
