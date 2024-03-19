@@ -40,7 +40,7 @@ class Monitor2DSpatial:
 
         np.savetxt(self.args.save_dict + '-uu_array.txt', uu_array)
 
-        sigma_zr=sigma_zr.detach().cpu().numpy()
+        #sigma_zr=sigma_zr.detach().cpu().numpy()
 
         xx, yy = np.meshgrid(self.check_on_x, self.check_on_y)
         # 创建热力图
@@ -62,25 +62,30 @@ class Monitor2DSpatial:
         axs[0,1].set_ylabel('z')
         axs[0,1].set_title('Disp_w')
         
-        axs[0,2].plot(history['train_loss'], label='training loss')
-        #axs[0,1].plot(history['valid_loss'], label='validation loss')
-        axs[0,2].set_title('loss during training')
-        axs[0,2].set_xlabel('epochs')
-        axs[0,2].set_ylabel('loss')
-        axs[0,2].set_yscale('log')
-        axs[0,2].legend()
+        # axs[0,2].plot(history['train_loss'], label='training loss')
+        # #axs[0,1].plot(history['valid_loss'], label='validation loss')
+        # axs[0,2].set_title('loss during training')
+        # axs[0,2].set_xlabel('epochs')
+        # axs[0,2].set_ylabel('loss')
+        # axs[0,2].set_yscale('log')
+        # axs[0,2].legend()
 
-        
-        # heatmap=axs[1,0].pcolormesh(xx, yy, sigma_zr.reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
-        # contour_lines = axs[1,0].contour(xx, yy, sigma_zr.reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
-        # # 添加颜色条
-        # cbar=plt.colorbar(heatmap,ax=axs[1,0],label='sigma_zr')
-        # # 添加轴标签
-        # axs[1,0].set_xlabel('r')
-        # axs[1,0].set_ylabel('z')
-        # axs[1,0].set_title('Disp_w')
+        i=0 ; j=1
+        for k in range(2,6):
+            j=j+1
+            if j>=3:
+                i=i+1
+                j=0
+            heatmap=axs[i,j].pcolormesh(xx, yy, uu_array[:,k].reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
+            contour_lines = axs[i,j].contour(xx, yy, uu_array[:,k].reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
+            # 添加颜色条
+            cbar=plt.colorbar(heatmap,ax=axs[i,j],label='Disp')
+            # 添加轴标签
+            axs[i,j].set_xlabel('r')
+            axs[i,j].set_ylabel('z')
 
-        i=0 ; j=2
+
+        i=1 ; j=3
         for metric_name, metric_values in history.items():
             if metric_name[:5]=="valid" or metric_name=="train_loss":
                 continue
