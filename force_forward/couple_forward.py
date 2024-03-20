@@ -25,6 +25,7 @@ mu =0.14 #泊松比
 G=E/2/(1+mu)  #剪切模量
 alpha=4*10**-6 #线膨胀系数
 beta=alpha *E /(1-2*mu) #热应力系数
+maxf=10 #最高温度
 
 parser = argparse.ArgumentParser(description='PyTorch Deep Learning Training Force Forward')
 
@@ -77,16 +78,29 @@ if use_gpu:
         cuda_kwargs = {'num_workers': 1,
                        'pin_memory': True,
                        'shuffle': True}
-        
+
+heat_network=torch.load('heat_model.pth',map_location=device)
+
+def load_heat(r,z):
+    xx=(r-r1)/(r2-r1)
+    yy=z/h1
+    x = torch.unsqueeze(xx, dim=1).requires_grad_()
+    y = torch.unsqueeze(yy, dim=1).requires_grad_()
+    xy = torch.cat((x, y), dim=1)
+    DT = heat_network(xy)
+    DT = torch.squeeze(DT.requires_grad_()) #*maxf
+    DT=(1-yy)*DT+2*xx**3-3*xx**2+1
+    return DT *maxf
+
 def calculate_sigma_rr(u,w,r,z):
     #return 2*G * ((1-mu)/(1-2*mu)*diff(u,r) + mu/(1-2*mu)*(u/r+diff(w,z)))
-    return 2*G * ((1-mu)/(1-2*mu)*diff(u,r) + mu/(1-2*mu)*(u/r+diff(w,z)))
+    return 2*G * ((1-mu)/(1-2*mu)*diff(u,r) + mu/(1-2*mu)*(u/r+diff(w,z)))-beta*load_heat(r,z)
 
 def calculate_sigma_theta(u,w,r,z):
-    return 2*G * ((1-mu)/(1-2*mu)*u/r + mu/(1-2*mu)*(diff(w,z)+diff(u,r)))
+    return 2*G * ((1-mu)/(1-2*mu)*u/r + mu/(1-2*mu)*(diff(w,z)+diff(u,r)))-beta*load_heat(r,z)
 
 def calculate_sigma_zz(u,w,r,z):
-    return 2*G * ((1-mu)/(1-2*mu)*diff(w,z) + mu/(1-2*mu)*((u/r)+diff(u,r)))
+    return 2*G * ((1-mu)/(1-2*mu)*diff(w,z) + mu/(1-2*mu)*((u/r)+diff(u,r)))-beta*load_heat(r,z)
 
 def calculate_tau_zr(u,w,r,z):
     return G*(diff(w,r)+diff(u,z))  ##MPa  um
@@ -97,13 +111,6 @@ def force_balance_r(u,w,r,z):
     tau_zr=calculate_tau_zr(u,w,r,z)
 
     return diff(sigma_rr,r)+diff(tau_zr,z)+(sigma_rr-sigma_theta)/r
-
-# def force_balance_r(uu,r,z):
-#     sigma_rr=uu[:,2]
-#     sigma_theta=uu[:,3]
-#     tau_zr=uu[:,5]
-
-#     return diff(sigma_rr,r)+diff(tau_zr,z)+(sigma_rr-sigma_theta)/r
 
 def force_balance_z(u,w,r,z):
     sigma_zz=calculate_sigma_zz(u,w,r,z)
@@ -182,11 +189,13 @@ metrics={}
 #方程
 def equ1(uu,xx,yy):
     error=force_balance_r(uu[:,0],uu[:,1],xx,yy)
+    # error=force_balance_r(uu,xx,yy)
     return torch.mean(abs(error)**2)
 metrics['equ1']=equ1
 
 def equ2(uu,xx,yy):
     error=force_balance_z(uu[:,0],uu[:,1],xx,yy)
+    # error=force_balance_z(uu,xx,yy)
     return torch.mean(abs(error)**2)
 metrics['equ2']=equ2
 
@@ -215,42 +224,6 @@ metrics['equ6']=equ6
 #     return torch.mean(abs(error))
 # metrics['equ7']=equ7
 
-# def equ3(uu,xx,yy):
-#     error=u_accumulate(uu[:,0],uu[:,1],xx,yy)
-#     return torch.mean(abs(error)**2)
-# metrics['equ3']=equ3
-
-#左边界
-# def leftbound_mse(uu,xx,yy):
-#     x,y=next(boundary_left.points_generator)
-#     u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
-#     error=boundary_left.form(u,x,y)
-#     return torch.mean(abs(error)**2)
-# metrics['leftbound_mse']=leftbound_mse
-
-# #下边界
-# def bottombound_mse(uu,xx,yy):
-#     x,y=next(boundary_bottom.points_generator)
-#     u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
-#     error=boundary_bottom.form(u,x,y)
-#     return torch.mean(abs(error)**2)
-# metrics['bottombound_mse']=bottombound_mse
-
-#右边界
-# def rightbound_mse(uu,xx,yy):
-#     x,y=next(boundary_right.points_generator)
-#     u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
-#     error=boundary_right.form(u,x,y)
-#     return torch.mean(abs(error)**2)
-# metrics['rightbound_mse']=rightbound_mse
-
-#上边界
-# def upbound_mse(uu,xx,yy):
-#     x,y=next(boundary_up.points_generator)
-#     u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
-#     error=boundary_up.form(u,x,y)
-#     return torch.mean(abs(error)**2)
-# metrics['upbound_mse']=upbound_mse
 
 fcnn = FCNN(
     n_input_units=2,
@@ -264,7 +237,8 @@ fcnn=fcnn.to(device)
 fcnn_approximator = SingleNetworkApproximator2DSpatial(
     single_network=fcnn,
     #single_network=renn,
-    pde=(force_balance_r,force_balance_z,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr),#,calculate_sigma_rr,calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr
+    pde=(force_balance_r,force_balance_z,calculate_sigma_rr,\
+         calculate_sigma_theta,calculate_sigma_zz,calculate_tau_zr),
     boundary_conditions=[
         boundary_left,
         boundary_bottom,
@@ -278,7 +252,9 @@ size_train=args.train_rec_size
 adam=optim.Adam(fcnn_approximator.parameters(),lr=args.lr)
 #train_gen_spatial = generator_2dspatial_rectangle(size=(size_train, size_train), x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0,device=device,random=args.train_gen_random)
 train_gen_spatial = generator_2dspatial_rectangle(size=(size_train, size_train), x_min=r1, x_max=r2, y_min=0.0, y_max=h1,device=device,random=args.train_gen_random)
-valid_gen_spatial = generator_2dspatial_rectangle(size=(50, 50), x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, random=args.valid_gen_random,device=device)#%matplotlib inline
+valid_gen_spatial = generator_2dspatial_rectangle(size=(50, 50), x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, random=args.valid_gen_random,device=device)
+
+#%matplotlib inline
 heat_transfer_2d_solution, _ = _solve_2dspatial(
     train_generator_spatial=train_gen_spatial,
     valid_generator_spatial=valid_gen_spatial,
@@ -291,8 +267,8 @@ heat_transfer_2d_solution, _ = _solve_2dspatial(
     monitor=Monitor2DSpatial(        
         # check_on_x=torch.linspace(0.0, 1.0, 50),
         # check_on_y=torch.linspace(0.0, 1.0, 50),
-        check_on_x=torch.linspace(r1, r2, 200),
-        check_on_y=torch.linspace(0.0, h1, 200),
+        check_on_x=torch.linspace(r1, r2, 50),
+        check_on_y=torch.linspace(0.0, h1, 50),
         check_every=args.check_every,
         device=device,
         args=args

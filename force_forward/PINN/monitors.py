@@ -28,17 +28,28 @@ class Monitor2DSpatial:
         self.args=args
 
     def check(self, approximator, history,epoch):
+        
+        torch.save(approximator.single_network,str(self.args.save_dict)+"-model/"+str(epoch)+'.pth')
         clear_output(wait=True)
-        fig, axs = plt.subplots(4, 3, figsize=(13, 14))
+        fig, axs = plt.subplots(4, 3, figsize=(14, 14))
 
         #print(self.yy_tensor)
 
         uu_array = approximator(self.xx_tensor, self.yy_tensor)
+        uu_array = torch.nan_to_num(uu_array, nan=0)
+        
         sigma_zr=calculate_tau_zr(uu_array[:,0],uu_array[:,1],self.xx_tensor,self.yy_tensor)
 
         uu_array=uu_array.detach().cpu().numpy()
 
         np.savetxt(self.args.save_dict + '-uu_array.txt', uu_array)
+        
+        max_length = max(len(value) for value in history.values())
+
+        # 将字典中的值转换为相同长度的数组
+        history_array = np.array([value  for value in history.values()]).T
+
+        np.savetxt(self.args.save_dict + '-history.txt', history_array)
 
         #sigma_zr=sigma_zr.detach().cpu().numpy()
 
@@ -47,20 +58,38 @@ class Monitor2DSpatial:
         heatmap=axs[0,0].pcolormesh(xx, yy, uu_array[:,0].reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
         contour_lines = axs[0,0].contour(xx, yy, uu_array[:,0].reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
         # 添加颜色条
-        cbar=plt.colorbar(heatmap,ax=axs[0,0],label='Disp')
+        cbar=plt.colorbar(heatmap,ax=axs[0,0])
+
+        
+        num_ticks = 10  # 指定刻度的数量
+        tick_values = np.linspace(uu_array[:,0].min(), uu_array[:,0].max(), num_ticks)
+        tick_labels = [f'{val:.5f}' for val in tick_values]
+
+        # 设置颜色条的刻度值和标签
+        cbar.set_ticks(tick_values)
+        cbar.set_ticklabels(tick_labels)
+
         # 添加轴标签
         axs[0,0].set_xlabel('r')
         axs[0,0].set_ylabel('z')
-        axs[0,0].set_title('Disp_u')
+        axs[0,0].set_title('u')
 
         heatmap=axs[0,1].pcolormesh(xx, yy, uu_array[:,1].reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
         contour_lines = axs[0,1].contour(xx, yy, uu_array[:,1].reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
         # 添加颜色条
-        cbar=plt.colorbar(heatmap,ax=axs[0,1],label='Disp')
+        cbar=plt.colorbar(heatmap,ax=axs[0,1],)
+        num_ticks = 10  # 指定刻度的数量
+        tick_values = np.linspace(uu_array[:,1].min(), uu_array[:,1].max(), num_ticks)
+        tick_labels = [f'{val:.5f}' for val in tick_values]
+
+        # 设置颜色条的刻度值和标签
+        cbar.set_ticks(tick_values)
+        cbar.set_ticklabels(tick_labels)
+
         # 添加轴标签
         axs[0,1].set_xlabel('r')
         axs[0,1].set_ylabel('z')
-        axs[0,1].set_title('Disp_w')
+        axs[0,1].set_title('w')
         
         # axs[0,2].plot(history['train_loss'], label='training loss')
         # #axs[0,1].plot(history['valid_loss'], label='validation loss')
@@ -83,6 +112,13 @@ class Monitor2DSpatial:
             # 添加轴标签
             axs[i,j].set_xlabel('r')
             axs[i,j].set_ylabel('z')
+            num_ticks = 10  # 指定刻度的数量
+            tick_values = np.linspace(uu_array[:,k].min(), uu_array[:,k].max(), num_ticks)
+            tick_labels = [f'{val:.5f}' for val in tick_values]
+
+            # 设置颜色条的刻度值和标签
+            cbar.set_ticks(tick_values)
+            cbar.set_ticklabels(tick_labels)
 
 
         i=1 ; j=3

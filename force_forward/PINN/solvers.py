@@ -64,8 +64,10 @@ class SingleNetworkApproximator2DSpatial(Approximator):
             u_par_0=0
             #uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
             uu[:,1]=u_par_0+yy*uu[:,1].clone()
+
             uu[:,5]=u_par_0+(h1-yy)*(xx-r1)*(r2-xx)*yy*uu[:,5].clone()\
             /((h1-yy)*(xx-r1)*(r2-xx)+(h1-yy)*(xx-r1)*yy+(h1-yy)*(r2-xx)*yy+(xx-r1)*(r2-xx)*yy)
+            
 
             u_par_up=((-10+1)*(2*((xx-r1)/(r2-r1))**3-3*((xx-r1)/(r2-r1))**2+1)-1)
             uu[:,4]=u_par_up+(h1-yy)*uu[:,4].clone()
@@ -107,30 +109,39 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         #weight=torch.tensor([1 for i in range(len(equ_list))]).to(device)
         while True:
             alpha=0.1
-            #weight_hat=abs(torch.log2(pde_mean_grad_equ1/equ_list))
-            weight_hat=abs((pde_mean_grad_equ1/equ_list))
+            if self.args.log==1:
+                weight_hat=abs(torch.log2(pde_mean_grad_equ1/equ_list))
+            else:
+                weight_hat=abs((pde_mean_grad_equ1/equ_list))
             weight=(1-alpha)*weight+alpha*weight_hat
             yield weight
 
     def calculate_weight(self,xx,yy,weight,device):
         uu = self.__call__(xx, yy)
         equ_list=[]
+        #net_grad=list(self.single_network.parameters())[-1]
+        net_grad=self.single_network.parameters()
         equ1_mse = torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)
         pde_grad=grad(equ1_mse,self.single_network.parameters(),create_graph=False,allow_unused=True,retain_graph=True)
-        pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])    
-        pde_mean_grad_equ1=(torch.mean(abs(pde_grad)))
+        # print(len(pde_grad))
+        # print(pde_grad[len(pde_grad)-1].detach().numpy())
+        #pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])    
+        pde_grad_last=pde_grad[len(pde_grad)-2]
+        pde_mean_grad_equ1=(torch.mean(abs(pde_grad_last)))
 
     
         equ2_mse = torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)
         pde_grad=grad(equ2_mse,self.single_network.parameters(),create_graph=False,allow_unused=True,retain_graph=True)
-        pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])    
-        equ_list.append(torch.mean(abs(pde_grad)))
+        #pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])   
+        pde_grad_last=pde_grad[len(pde_grad)-2]
+        equ_list.append(torch.mean(abs(pde_grad_last)))
 
         for i in range(2,len(self.pde)):
             equation_mse = torch.mean(abs(self.pde[i](uu[:,0],uu[:,1], xx, yy)-uu[:,i])**2)
             pde_grad=grad(equation_mse,self.single_network.parameters(),create_graph=False,allow_unused=True,retain_graph=True)
-            pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])    
-            equ_list.append(torch.mean(abs(pde_grad)))
+            #pde_grad = torch.cat([grad_tensor.view(-1) for grad_tensor in pde_grad if grad_tensor is not None])    
+            pde_grad_last=pde_grad[len(pde_grad)-2]
+            equ_list.append(torch.mean(abs(pde_grad_last)))
 
         equ_list=torch.tensor(equ_list).to(device)
         #print(pde_mean_grad.item())
@@ -190,6 +201,7 @@ class SingleNetworkApproximator2DSpatial(Approximator):
 def _train_2dspatial(train_generator_spatial, train_generator_temporal,
                      approximator, optimizer, metrics, shuffle, batch_size,device,args):
     xx, yy = next(train_generator_spatial)
+
     xx,yy=xx.to(device),yy.to(device)
 
     xx.requires_grad = True
@@ -292,7 +304,7 @@ def _solve_spatial_temporal(
     approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,args,
     train_routine, valid_routine
 ):
-    history = {'train_loss': [], 'valid_loss': []}
+    history = {'train_loss': []}#, 'valid_loss': []}
     for metric_name, _ in metrics.items():
         history['train_' + metric_name] = []
         #history['valid_' + metric_name] = []
