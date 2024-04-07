@@ -24,7 +24,7 @@ E= 420*10**-3 #杨氏模量 um $ MPa
 mu =0.14 #泊松比
 G=E/2/(1+mu)  #剪切模量
 alpha=4*10**-6 #线膨胀系数
-beta=alpha *E /(1-2*mu) #热应力系数
+beta=alpha *E /(1-2*mu) *10**6#热应力系数
 maxf=10 #最高温度
 
 parser = argparse.ArgumentParser(description='PyTorch Deep Learning Training Force Forward')
@@ -50,6 +50,7 @@ parser.add_argument('--weight_equ5', type=int , default=10 ,help='控制方程5�
 parser.add_argument('--weight_equ6', type=int , default=3,help='控制方程6权重')
 parser.add_argument('--weight_equ7', type=int , default=3,help='控制方程7权重')
 parser.add_argument('--boundary_strictness', type=float , default=0.5 ,help='边界严格参数')
+parser.add_argument('--center_value', type=float , default=3 ,help='中心值')
 parser.add_argument('--network_MLP', type=str , default="32,32,32,32,32" ,help='全连接网络形状')
 #parser.add_argument('--network_MLP', type=str , default="64,64,64,64,64,64,64,64" ,help='全连接网络形状')
 parser.add_argument('--check_every', type=int , default=100 ,help='检测周期')
@@ -251,7 +252,7 @@ fcnn_approximator = SingleNetworkApproximator2DSpatial(
 size_train=args.train_rec_size
 adam=optim.Adam(fcnn_approximator.parameters(),lr=args.lr)
 #train_gen_spatial = generator_2dspatial_rectangle(size=(size_train, size_train), x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0,device=device,random=args.train_gen_random)
-train_gen_spatial = generator_2dspatial_rectangle(size=(size_train, size_train), x_min=r1, x_max=r2, y_min=0.0, y_max=h1,device=device,random=args.train_gen_random)
+train_gen_spatial = generator_2dspatial_rectangle(size=(size_train, size_train), x_min=r1, x_max=r2, y_min=0.0, y_max=h1,device=device,random=args.train_gen_random,bound=True)
 valid_gen_spatial = generator_2dspatial_rectangle(size=(50, 50), x_min=0.0, x_max=1.0, y_min=0.0, y_max=1.0, random=args.valid_gen_random,device=device)
 
 #%matplotlib inline

@@ -5,6 +5,7 @@ from torch import optim
 import math
 import json
 from PINN.function import *
+import numpy as np
 
 
 
@@ -66,7 +67,7 @@ class SingleNetworkApproximator2DSpatial(Approximator):
             uu[:,1]=u_par_0+yy*uu[:,1].clone()
 
             uu[:,5]=u_par_0+(h1-yy)*(xx-r1)*(r2-xx)*yy*uu[:,5].clone()\
-            /((h1-yy)*(xx-r1)*(r2-xx)+(h1-yy)*(xx-r1)*yy+(h1-yy)*(r2-xx)*yy+(xx-r1)*(r2-xx)*yy)
+            /((h1-yy)*(xx-r1)*(r2-xx)+(h1-yy)*(xx-r1)*yy+(h1-yy)*(r2-xx)*yy+(xx-r1)*(r2-xx)*yy+1e-20)
             
 
             u_par_up=((-10+1)*(2*((xx-r1)/(r2-r1))**3-3*((xx-r1)/(r2-r1))**2+1)-1)
@@ -80,14 +81,21 @@ class SingleNetworkApproximator2DSpatial(Approximator):
 
     def calculate_loss(self, xx, yy):
         uu = self.__call__(xx, yy)
-        #print(uu.shape)
+        #print(xx.shape)
         # print(uu[:,0].shape)
+        R_func=(h1-yy)*(xx-r1)*(r2-xx)*yy/((h1-yy)*(xx-r1)*(r2-xx)+(h1-yy)*(xx-r1)*yy+(h1-yy)*(r2-xx)*yy+(xx-r1)*(r2-xx)*yy+1e-20)
+        R_center=1/(4/(r2-r1)+4/h1)  
+
+        bound_optim=self.args.boundary_strictness*torch.exp(abs(R_func)*(math.log(self.args.center_value)-math.log(self.args.boundary_strictness))/R_center)
+        bound_optim=bound_optim.detach().cpu().numpy()
+        np.savetxt('bound_optim.txt',bound_optim)
+
         equation_mse = self.args.weight_equ1*torch.mean(abs(self.pde[0](uu[:,0],uu[:,1], xx, yy))**2)+\
                        self.args.weight_equ2*torch.mean(abs(self.pde[1](uu[:,0],uu[:,1], xx, yy))**2)+\
-                       self.args.weight_equ3*torch.mean(abs(self.pde[2](uu[:,0],uu[:,1], xx, yy)-uu[:,2])**2)+\
-                       self.args.weight_equ4*torch.mean(abs(self.pde[3](uu[:,0],uu[:,1], xx, yy)-uu[:,3])**2)+\
-                       self.args.weight_equ5*torch.mean(abs(self.pde[4](uu[:,0],uu[:,1], xx, yy)-uu[:,4])**2)+\
-                       self.args.weight_equ6*torch.mean(abs(self.pde[5](uu[:,0],uu[:,1], xx, yy)-uu[:,5])**2)#+\
+                       self.args.weight_equ3*torch.mean((abs(self.pde[2](uu[:,0],uu[:,1], xx, yy)-uu[:,2])*bound_optim)**2)+\
+                       self.args.weight_equ4*torch.mean((abs(self.pde[3](uu[:,0],uu[:,1], xx, yy)-uu[:,3])*bound_optim)**2)+\
+                       self.args.weight_equ5*torch.mean((abs(self.pde[4](uu[:,0],uu[:,1], xx, yy)-uu[:,4])*bound_optim)**2)+\
+                       self.args.weight_equ6*torch.mean((abs(self.pde[5](uu[:,0],uu[:,1], xx, yy)-uu[:,5])*bound_optim)**2)#+\
                        #self.args.weight_equ7*torch.mean(abs(self.pde[6](uu, xx, yy)))   #rr,theta,zz,zr
                 
         #boundary_mse = self.boundary_strictness * sum(self._boundary_mse(bc) for bc in self.boundary_conditions)
@@ -111,6 +119,7 @@ class SingleNetworkApproximator2DSpatial(Approximator):
             alpha=0.1
             if self.args.log==1:
                 weight_hat=abs(torch.log2(pde_mean_grad_equ1/equ_list))
+                #weight_hat=abs((pde_mean_grad_equ1/equ_list))
             else:
                 weight_hat=abs((pde_mean_grad_equ1/equ_list))
             weight=(1-alpha)*weight+alpha*weight_hat
@@ -224,6 +233,15 @@ def _train_2dspatial(train_generator_spatial, train_generator_temporal,
         optimizer.zero_grad()
         batch_loss.backward()
         optimizer.step()
+
+        # def closure():
+        #     batch_loss = approximator.calculate_loss(batch_xx, batch_yy)
+        #     optimizer.zero_grad()
+        #     batch_loss.backward(retain_graph=True)
+        #     return batch_loss
+        
+        # batch_loss=optimizer.step(closure)
+
         batch_start += batch_size
         batch_end += batch_size
     # if args.mtl==0:

@@ -1,6 +1,11 @@
 import torch
 from abc import ABC, abstractmethod
 from torch.autograd import grad
+import math
+import numpy as np
+
+
+
 
 class Approximator(ABC):
     r"""The base class of approximators. An approximator is an approximation of the differential equation's solution.
@@ -49,22 +54,43 @@ class SingleNetworkApproximator2DSpatial(Approximator):
         y = torch.unsqueeze(yy, dim=1).requires_grad_()
         xy = torch.cat((x, y), dim=1)
         uu = self.single_network(xy)
-        uu = torch.squeeze(uu.requires_grad_())  # Ensure that uu also requires gradients
+        #uu = torch.squeeze(uu.requires_grad_())  # Ensure that uu also requires gradients
         ## exact imposition diriclet boundary
         if self.args.impose!=0:
-            u_par=2*xx**3-3*xx**2+1
+            u_up=2*xx**3-3*xx**2+1
+            u_0=0
+            u_leftdata=0.68374
             #uu=u_par+(1-yy)*yy*(1-xx)*xx*uu
-            uu=u_par+(1-yy)*uu
+            #uu[:,0]=u_up+(1-yy)*uu[:,0].clone()
+            phi_1_1=abs(1-xx)+abs(1-yy)
+            phi_0_05=abs(xx)+abs(0.5-yy)
+            #uu[:,1]=u_0+xx*phi_1_1/(xx+phi_1_1)*uu[:,1].clone()
+            #uu[:,1]=u_0+xx*((1-xx)*(1-xx)+(1-yy)*(1-yy))*uu[:,1].clone()
+            uu[:,1]=u_0+xx*phi_1_1*uu[:,1].clone()/(xx+phi_1_1)
+            uu[:,2]=u_0+yy*uu[:,2].clone()
+            uu[:,3]=u_0+(1-xx)*uu[:,3].clone()
+            uu[:,0]=u_leftdata+phi_0_05*uu[:,0].clone()
         return uu
     
     def parameters(self):
         return self.single_network.parameters()
 
     def calculate_loss(self, xx, yy):
+
         uu = self.__call__(xx, yy)
+        R_func=(1-yy)*(xx)*(1-xx)*yy/((1-yy)*(xx)*(1-xx)+(1-yy)*(xx)*yy+(1-yy)*(1-xx)*yy+(xx)*(1-xx)*yy+1e-20)
+        R_center=1/4
 
-        equation_mse = torch.mean(abs(self.pde(uu, xx, yy))**2)
+        bound_optim=self.args.boundary_strictness*torch.exp(abs(R_func)*(math.log(self.args.center_value)-math.log(self.args.boundary_strictness))/R_center)
+        # bound_optim=bound_optim.detach().cpu().numpy()
+        # np.savetxt('bound_optim.txt',bound_optim)
 
+        equation_mse = self.args.weight_equ1*torch.mean(abs(self.pde[0](uu[:,0], xx, yy))**2)+\
+                       self.args.weight_equ2*torch.mean((abs(self.pde[1](uu[:,0], xx, yy)-uu[:,1])*bound_optim)**2)+\
+                       self.args.weight_equ3*torch.mean((abs(self.pde[2](uu[:,0], xx, yy)-uu[:,2])*bound_optim)**2)+\
+                       self.args.weight_equ4*torch.mean((abs(self.pde[3](uu[:,0], xx, yy)-uu[:,3])*bound_optim)**2)#+\
+                       #self.args.weight_equ5*torch.mean(abs(self.pde[4](uu[:,0], xx, yy))**2)
+                       #self.args.weight_equ6*torch.mean(abs(self.pde[5](uu[:,0], xx, yy))**2)
         #boundary_mse = self.boundary_strictness * sum(self._boundary_mse(bc) for bc in self.boundary_conditions)
         h1=0.02  #高
         #weight_pde=h1 ** 4 /3
@@ -242,10 +268,13 @@ def _solve_spatial_temporal(
     approximator, optimizer, batch_size, max_epochs, shuffle, metrics, monitor,device,args,
     train_routine, valid_routine
 ):
-    history = {'train_loss': [], 'valid_loss': []}
+    history = {'train_loss': []}
     for metric_name, _ in metrics.items():
         history['train_' + metric_name] = []
         #history['valid_' + metric_name] = []
+    if args.mtl==1:
+        for i in range(4-args.impose):
+            history['weight'+str(i)]=[]
     with open(args.save_dict+'-train_log.txt', 'w') as file:
         file.write("....... begin training ....... \n")
     for epoch in range(max_epochs):
@@ -253,6 +282,11 @@ def _solve_spatial_temporal(
             train_generator_spatial, train_generator_temporal, approximator, optimizer, metrics, shuffle, batch_size,device,args,
         )
         history['train_loss'].append(train_epoch_loss.detach().cpu())
+        
+        if args.mtl==1:
+            weight=weight.detach().cpu().numpy()
+            for i in range(4-args.impose):
+                history['weight'+str(i)].append(weight[i])
         
         for metric_name, metric_value in train_epoch_metrics.items():
             history['train_' + metric_name].append(metric_value)
@@ -274,7 +308,7 @@ def _solve_spatial_temporal(
             for key, value in last_items.items():
                 file.write(f"{key}: {value}\n")
             file.write("weight: left bottom right \n")
-            for w in weight.detach().cpu().tolist():
+            for w in weight.tolist():
                 file.write(str(w)+'\n')
             file.write("Already calculate for "+ str(epoch) + "/"+str(max_epochs)+'\n')
 

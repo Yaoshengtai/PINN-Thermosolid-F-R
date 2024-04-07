@@ -109,7 +109,7 @@ def generator_2dspatial_rectangle(size, x_min, x_max, y_min, y_max, device,rando
         
         xy = torch.cartesian_prod(x, y)
         
-        xy=torch.cat((xy[1:len(x)-1], xy[len(x):len(xy)-len(y)],xy[len(xy)-len(y)+1:len(xy)-1]))
+        #xy=torch.cat((xy[1:len(x)-1], xy[len(x):len(xy)-len(y)],xy[len(xy)-len(y)+1:len(xy)-1]))
 
 
         xx = torch.squeeze(xy[:, 0])

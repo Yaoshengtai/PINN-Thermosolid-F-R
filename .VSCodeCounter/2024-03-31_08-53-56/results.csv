@@ -1,0 +1,53 @@
+"filename", "language", "Shell Script", "Python", "JSON", "Markdown", "JSON with Comments", "comment", "blank", "total"
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/Draw_figure.ipynb", "JSON", 0, 0, 212, 0, 0, 0, 1, 213
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/PINN-Thermoelastic-F-I.code-workspace", "JSON with Comments", 0, 0, 0, 0, 7, 0, 0, 7
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/README.md", "Markdown", 0, 0, 0, 2, 0, 0, 1, 3
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/PINN/conditions.py", "Python", 0, 25, 0, 0, 0, 0, 4, 29
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/PINN/diff.py", "Python", 0, 29, 0, 0, 0, 0, 2, 31
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/PINN/function.py", "Python", 0, 26, 0, 0, 0, 1, 10, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/PINN/generators.py", "Python", 0, 99, 0, 0, 0, 1, 17, 117
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/PINN/monitors.py", "Python", 0, 115, 0, 0, 0, 56, 41, 212
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/PINN/networks.py", "Python", 0, 82, 0, 0, 0, 7, 16, 105
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/PINN/solvers.py", "Python", 0, 237, 0, 0, 0, 71, 63, 371
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/couple_forward.ipynb", "JSON", 0, 0, 604, 0, 0, 0, 1, 605
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/couple_forward.py", "Python", 0, 208, 0, 0, 0, 28, 43, 279
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/force_comsol_detection.ipynb", "JSON", 0, 0, 683, 0, 0, 0, 1, 684
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/force_forward.ipynb", "JSON", 0, 0, 801, 0, 0, 0, 1, 802
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/force_forward.py", "Python", 0, 195, 0, 0, 0, 62, 46, 303
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/run1.sh", "Shell Script", 30, 0, 0, 0, 0, 5, 1, 36
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/run10.sh", "Shell Script", 29, 0, 0, 0, 0, 5, 1, 35
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/run2.sh", "Shell Script", 30, 0, 0, 0, 0, 5, 1, 36
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/run3.sh", "Shell Script", 30, 0, 0, 0, 0, 5, 1, 36
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/run4.sh", "Shell Script", 30, 0, 0, 0, 0, 5, 1, 36
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/run5.sh", "Shell Script", 31, 0, 0, 0, 0, 5, 1, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/run6.sh", "Shell Script", 31, 0, 0, 0, 0, 5, 1, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/run7.sh", "Shell Script", 30, 0, 0, 0, 0, 5, 1, 36
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/run8.sh", "Shell Script", 29, 0, 0, 0, 0, 5, 1, 35
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/force_forward/run9.sh", "Shell Script", 30, 0, 0, 0, 0, 5, 1, 36
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/PINN/conditions.py", "Python", 0, 25, 0, 0, 0, 0, 4, 29
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/PINN/diff.py", "Python", 0, 29, 0, 0, 0, 0, 2, 31
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/PINN/generators.py", "Python", 0, 99, 0, 0, 0, 1, 18, 118
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/PINN/monitors.py", "Python", 0, 80, 0, 0, 0, 15, 19, 114
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/PINN/networks.py", "Python", 0, 82, 0, 0, 0, 7, 16, 105
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/PINN/solvers.py", "Python", 0, 240, 0, 0, 0, 22, 49, 311
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/heat_comsol_detection.ipynb", "JSON", 0, 0, 631, 0, 0, 0, 1, 632
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/heat_forward.ipynb", "JSON", 0, 0, 633, 0, 0, 0, 1, 634
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/heat_forward.py", "Python", 0, 169, 0, 0, 0, 30, 37, 236
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/heat_forward_new.py", "Python", 0, 180, 0, 0, 0, 30, 38, 248
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run1.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run10.sh", "Shell Script", 29, 0, 0, 0, 0, 5, 9, 43
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run11.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run12.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run13.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run14.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run15.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run16.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run2.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run3.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run4.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run5.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run6.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run7.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run8.sh", "Shell Script", 29, 0, 0, 0, 0, 5, 9, 43
+"/Users/yst/Documents/本科项目/毕设/PINN-Thermoelastic-F-I/heat_forward/run9.sh", "Shell Script", 24, 0, 0, 0, 0, 5, 8, 37
+"Total", "-", 694, 1920, 3564, 2, 7, 461, 572, 7220

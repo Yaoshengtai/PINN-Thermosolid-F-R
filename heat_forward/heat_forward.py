@@ -37,6 +37,7 @@ parser.add_argument('--train_rec_size', type=int , default=128 ,help='矩形区�
 parser.add_argument('--train_bound_size', type=int , default=64 ,help='边界上生成的点数')
 parser.add_argument('--train_gen_random', type=bool , default=True ,help='训练生成点是否随机')
 parser.add_argument('--valid_gen_random', type=bool , default=True ,help='验证生成点是否随机')
+parser.add_argument('--equ', type=int , default=0 ,help='方程权重')
 parser.add_argument('--weight_up', type=int , default=0 ,help='上边界权重')
 parser.add_argument('--weight_left', type=int , default=2 ,help='左边界权重')
 parser.add_argument('--weight_right', type=int , default=5 ,help='右边界权重')
@@ -75,7 +76,7 @@ def heat_transfer(u , xx, yy):
 
 def heat_transfer_norm(u,xx,yy):
     #return (diff(u,yy,order=2)+diff(u,xx,order=2)/(r2-r1)/(r2-r1)*h1*h1+diff(u,xx)/(xx*(r2-r1)*(r2-r1)+r1*(r2-r1))*h1*h1)
-    return diff(u,xx)+maxf*((r2-r1)*xx+r1)/(r2-r1)*diff(u,xx,order=2)+maxf*((r2-r1)*xx+r1)*(r2-r1)/h1/h1*diff(u,yy,order=2)
+    return diff(u,xx)+((r2-r1)*xx+r1)/(r2-r1)*diff(u,xx,order=2)+((r2-r1)*xx+r1)*(r2-r1)/h1/h1*diff(u,yy,order=2)
 
 #left
 adiabatic_left=BoundaryCondition(
@@ -146,13 +147,13 @@ def rightbound_mse(uu,xx,yy):
     return torch.mean(abs(error)**2)
 metrics['rightbound_mse']=rightbound_mse
     
-# #上边界
-# def upbound_mse(uu,xx,yy):
-#     x,y=next(constant_interface.points_generator)
-#     u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
-#     error=constant_interface.form(u,x,y)
-#     return torch.mean(abs(error)**2)
-# metrics['upbound_mse']=upbound_mse
+#上边界
+def upbound_mse(uu,xx,yy):
+    x,y=next(constant_interface.points_generator)
+    u=fcnn_approximator.__call__(x.requires_grad_(),y.requires_grad_())
+    error=constant_interface.form(u,x,y)
+    return torch.mean(abs(error)**2)
+metrics['upbound_mse']=upbound_mse
 
 # 与comsol对比mse
 def comsol_compare(uu,xx,yy):
@@ -195,13 +196,6 @@ fcnn = FCNN(
 
 fcnn=fcnn.to(device)
 
-renn=Resnet(
-    n_input_units=2,
-    n_output_units=1,
-    hidden_units=(64,64),
-    #actv=nn.Tanh
-    actv=nn.Softplus
-)
 
 fcnn_approximator = SingleNetworkApproximator2DSpatial(
     single_network=fcnn,

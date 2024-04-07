@@ -31,7 +31,7 @@ class Monitor2DSpatial:
         
         torch.save(approximator.single_network,str(self.args.save_dict)+"-model/"+str(epoch)+'.pth')
         clear_output(wait=True)
-        fig, axs = plt.subplots(4, 3, figsize=(14, 14))
+        fig, axs = plt.subplots(5, 3, figsize=(14, 17))
 
         #print(self.yy_tensor)
 
@@ -41,6 +41,9 @@ class Monitor2DSpatial:
         sigma_zr=calculate_tau_zr(uu_array[:,0],uu_array[:,1],self.xx_tensor,self.yy_tensor)
 
         uu_array=uu_array.detach().cpu().numpy()
+        sigma_zr=torch.nan_to_num(sigma_zr,nan=0)
+        sigma_zr=sigma_zr.detach().cpu().numpy()
+        
 
         np.savetxt(self.args.save_dict + '-uu_array.txt', uu_array)
         
@@ -120,8 +123,42 @@ class Monitor2DSpatial:
             cbar.set_ticks(tick_values)
             cbar.set_ticklabels(tick_labels)
 
+        i=2; j=0
+        
+        heatmap=axs[i,j].pcolormesh(xx, yy, sigma_zr.reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
+        contour_lines = axs[i,j].contour(xx, yy, sigma_zr.reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
+        # 添加颜色条
+        cbar=plt.colorbar(heatmap,ax=axs[i,j])
+        # 添加轴标签
+        axs[i,j].set_xlabel('r')
+        axs[i,j].set_ylabel('z')
+        num_ticks = 10  # 指定刻度的数量
+        max_zr=sigma_zr.max()
+        min_zr=sigma_zr.min()
+        tick_values = np.linspace(sigma_zr.min(), sigma_zr.max(), num_ticks)
+        tick_labels = [f'{val:.5f}' for val in tick_values]
+        # 设置颜色条的刻度值和标签
+        cbar.set_ticks(tick_values)
+        cbar.set_ticklabels(tick_labels)
 
-        i=1 ; j=3
+        i=2; j=1
+        
+        heatmap=axs[i,j].pcolormesh(xx, yy, (sigma_zr-uu_array[:,5]).reshape(xx.shape).T,cmap='rainbow')  # cmap是颜色映射，你可以根据需要选择
+        contour_lines = axs[i,j].contour(xx, yy, (sigma_zr-uu_array[:,5]).reshape(xx.shape).T, 10,colors='black', linewidths=0.5)
+        # 添加颜色条
+        cbar=plt.colorbar(heatmap,ax=axs[i,j])
+        # 添加轴标签
+        axs[i,j].set_xlabel('r')
+        axs[i,j].set_ylabel('z')
+        num_ticks = 10  # 指定刻度的数量
+        tick_values = np.linspace((sigma_zr-uu_array[:,5]).min(),(sigma_zr-uu_array[:,5]).max(), num_ticks)
+        tick_labels = [f'{val:.5f}' for val in tick_values]
+        # 设置颜色条的刻度值和标签
+        cbar.set_ticks(tick_values)
+        cbar.set_ticklabels(tick_labels)
+
+
+        i=2 ; j=1
         for metric_name, metric_values in history.items():
             if metric_name[:5]=="valid" or metric_name=="train_loss":
                 continue
@@ -134,6 +171,8 @@ class Monitor2DSpatial:
             axs[i,j].set_xlabel('epochs')
             axs[i,j].set_ylabel('loss')
             axs[i,j].set_yscale('log')
+
+        
         # points_generator=generator_2dspatial_segment(size=100, start=(0.0, 1.0), end=(1.0, 1.0),device=self.device,random=True)
         # x,y=next(points_generator)
         # u=approximator.__call__(x.requires_grad_(),y.requires_grad_())
